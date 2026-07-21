@@ -72,6 +72,16 @@ exports.handler = async (event) => {
       return { statusCode: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dayStory: data[0] }) };
     }
 
+    if (action === 'save-photos') {
+      const { photos } = body;
+      const { data, error } = await db
+        .from('day_stories')
+        .upsert({ date, photos: photos || [] }, { onConflict: 'date' })
+        .select();
+      if (error) throw error;
+      return { statusCode: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dayStory: data[0] }) };
+    }
+
     return { statusCode: 400, body: 'Unknown action' };
 
   } catch (err) {

@@ -44,8 +44,10 @@ create policy "Public update" on stops for update using (true) with check (true)
 create table if not exists day_stories (
   date text primary key,
   story text,
+  photos text[] default '{}',
   updated_at timestamptz default now()
 );
+alter table day_stories add column if not exists photos text[] default '{}';
 alter table day_stories enable row level security;
 drop policy if exists "Public read day_stories" on day_stories;
 create policy "Public read day_stories" on day_stories for select using (true);

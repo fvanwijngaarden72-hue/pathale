@@ -1197,6 +1197,20 @@
           <div class="transcription-text" id="dayStoryTranscriptionText"></div>
         </div>
       </div>
+
+      <div class="form-group">
+        <label>Foto's bij deze dag <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)">(niet gebonden aan één plek)</span></label>
+        <div class="photo-upload-area" id="dayPhotoUploadArea"
+          onclick="document.getElementById('dayPhotoInput').click()"
+          ondragover="event.preventDefault();this.classList.add('dragover')"
+          ondragleave="this.classList.remove('dragover')"
+          ondrop="event.preventDefault();this.classList.remove('dragover');handleDayPhotoDrop(event)">
+          <div class="photo-upload-icon">📸</div>
+          <div class="photo-upload-text"><strong>Klik of sleep foto's hierheen</strong><br>bijv. groepsfoto's, eten, sfeerbeelden van de dag</div>
+        </div>
+        <input type="file" id="dayPhotoInput" multiple accept="image/*" style="display:none" onchange="handleDayPhotoFiles(Array.from(this.files))">
+        <div class="photo-preview-grid" id="dayPhotoPreviewGrid"></div>
+      </div>
     </div>
     <div class="modal-footer" id="dayStoryFooterView">
       <button class="btn-cancel" onclick="regenerateDayStory()">🔄 Regenereer</button>
@@ -1232,6 +1246,7 @@ let photoNames = [], photoDataURLs = [];
 let editingStop = null;
 let _locResults = [];
 let dayStories = {};
+let dayStoriesPhotos = {};
 let tripMeta = { title: 'Mijn Reis', status: 'actief', finished_at: null };
 let liveTracking = false, liveWatchId = null, liveTrail = [], liveTrailLine = null, lastSavedPoint = null;
 let currentDayStoryDate = null, currentDayStoryItems = [], currentDayStoryStop = null;
@@ -1360,12 +1375,13 @@ function renderStops() {
     const items = groups[dateKey];
     const dateLabel = new Date(items[0].stop.created_at).toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long'});
     const firstWithPhoto = items.find(it => (it.stop.photos||[]).length > 0);
-    const thumb = firstWithPhoto ? firstWithPhoto.stop.photos[0] : null;
+    const dayLevelPhotos = dayStoriesPhotos[dateKey] || [];
+    const thumb = firstWithPhoto ? firstWithPhoto.stop.photos[0] : (dayLevelPhotos[0] || null);
     const hasStory = !!dayStories[dateKey];
     const snippetSource = hasStory ? dayStories[dateKey] : (items[0].stop.ai_analysis || items[0].stop.note || '');
     const snippet = snippetSource ? (snippetSource.length > 140 ? snippetSource.slice(0,140) + '…' : snippetSource) : 'Nog geen verhaal — tik om te genereren.';
 
-    const dayPhotoCount = items.reduce((sum, it) => sum + (it.stop.photos || []).length, 0);
+    const dayPhotoCount = items.reduce((sum, it) => sum + (it.stop.photos || []).length, 0) + dayLevelPhotos.length;
 
     const summaryCard = document.createElement('div');
     summaryCard.className = 'day-summary-card';
@@ -1947,7 +1963,11 @@ async function loadDayStories() {
     });
     const data = await res.json();
     dayStories = {};
-    (data.stories || []).forEach(s => { dayStories[s.date] = s.story; });
+    dayStoriesPhotos = {};
+    (data.stories || []).forEach(s => {
+      dayStories[s.date] = s.story;
+      dayStoriesPhotos[s.date] = s.photos || [];
+    });
     if (stops.length > 0) renderStops();
   } catch(e) {}
 }
@@ -1961,8 +1981,9 @@ function openDayStory(dateKey) {
   document.getElementById('dayStoryTitle').textContent = `📖 ${dateLabel}`;
   document.getElementById('dayStoryModal').style.display = 'flex';
   cancelEditDayStory();
-  const hasPhotos = items.some(s => (s.photos || []).length > 0);
+  const hasPhotos = items.some(s => (s.photos || []).length > 0) || (dayStoriesPhotos[dateKey] || []).length > 0;
   document.getElementById('dayStoryPhotosBtn').style.display = hasPhotos ? 'inline-block' : 'none';
+  renderDayPhotoGrid();
 
   if (dayStories[dateKey]) {
     document.getElementById('dayStorySpinner').style.display = 'none';
@@ -2033,7 +2054,81 @@ function getDayPhotos(dateKey) {
   dayStops.forEach(s => {
     (s.photos || []).forEach(url => images.push({ url, stopName: s.name }));
   });
+  (dayStoriesPhotos[dateKey] || []).forEach(url => images.push({ url, stopName: 'Dagfoto' }));
   return images;
+}
+
+// ==========================================
+// DAG-FOTO'S (niet aan een specifieke stop gebonden)
+// ==========================================
+function handleDayPhotoDrop(e) {
+  const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+  handleDayPhotoFiles(files);
+}
+
+async function handleDayPhotoFiles(files) {
+  if (files.length === 0) return;
+  showToast('📸 Dagfoto\'s verwerken...');
+
+  const current = dayStoriesPhotos[currentDayStoryDate] || [];
+
+  for (const file of files) {
+    try {
+      const dataURL = await compressImage(file, 1600, 0.82);
+      const [header, base64] = dataURL.split(',');
+      const mimeMatch = header.match(/data:([^;]+)/);
+      const mimetype = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const filename = `${Date.now()}_day_${safeName}`;
+
+      const res = await fetch('/.netlify/functions/stops', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'upload-photo', payload: { filename, base64, mimetype } })
+      });
+      const data = await res.json();
+      if (data.url) current.push(data.url);
+      else showToast('⚠️ Een foto kon niet worden geüpload');
+    } catch(e) {
+      showToast('⚠️ Een foto kon niet worden geüpload');
+    }
+  }
+
+  dayStoriesPhotos[currentDayStoryDate] = current;
+  renderDayPhotoGrid();
+  renderStops();
+  await saveDayPhotos();
+  showToast('✅ Dagfoto\'s toegevoegd!');
+}
+
+async function saveDayPhotos() {
+  try {
+    await fetch('/.netlify/functions/day-story', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'save-photos', date: currentDayStoryDate, photos: dayStoriesPhotos[currentDayStoryDate] || [] })
+    });
+  } catch(e) {
+    showToast('⚠️ Opslaan van dagfoto\'s mislukt');
+  }
+}
+
+function renderDayPhotoGrid() {
+  const grid = document.getElementById('dayPhotoPreviewGrid');
+  const photos = dayStoriesPhotos[currentDayStoryDate] || [];
+  grid.innerHTML = photos.map((url, i) =>
+    `<div class="photo-preview-item"><img src="${url}" onclick="openPhotoViewer(currentDayStoryDate, ${getDayPhotos(currentDayStoryDate).findIndex(p=>p.url===url)})"><button class="photo-remove" onclick="removeDayPhoto(${i})">✕</button></div>`
+  ).join('');
+}
+
+async function removeDayPhoto(index) {
+  const photos = dayStoriesPhotos[currentDayStoryDate] || [];
+  photos.splice(index, 1);
+  dayStoriesPhotos[currentDayStoryDate] = photos;
+  renderDayPhotoGrid();
+  renderStops();
+  await saveDayPhotos();
+  showToast('🗑 Dagfoto verwijderd');
 }
 
 function openPhotoViewer(dateKey, startIndex) {
@@ -2410,6 +2505,7 @@ function exportTripData() {
   const days = Object.keys(groups).sort().map(dateKey => ({
     datum: dateKey,
     dagverhaal: dayStories[dateKey] || null,
+    dag_fotos: dayStoriesPhotos[dateKey] || [],
     stops: groups[dateKey].map(s => ({
       naam: s.name,
       tijd: s.created_at,
