@@ -110,6 +110,14 @@
     body:not(.mobile-map-view) .map-container { display: none; }
   }
 
+  @media (max-width: 700px) {
+    .btn-label { display: none; }
+    .header-actions .btn,
+    .header-actions .btn-live,
+    .header-actions .btn-unlock-editor { padding: 8px 11px; }
+    .header-actions .btn-live span.dot { margin: 0; }
+  }
+
   .sidebar {
     background: var(--card);
     border-right: 1px solid var(--border);
@@ -1195,12 +1203,12 @@
   <div class="header-actions">
     <span class="viewer-badge" id="viewerBadge" style="display:none">👁 Alleen bekijken</span>
     <button class="btn-unlock-editor" id="unlockEditorBtn" onclick="unlockEditor()" style="display:none">🔓 Bewerkrechten invoeren</button>
-    <button class="btn-live editor-only" id="liveTrackBtn" onclick="toggleLiveTracking()"><span class="dot"></span> Live volgen</button>
-    <button class="btn btn-ghost editor-only" onclick="document.getElementById('routePhotoInput').click()" title="Voegt een route toe op basis van GPS-data uit meerdere foto's, zonder losse stops aan te maken">📍 Route uit foto's</button>
+    <button class="btn-live editor-only" id="liveTrackBtn" onclick="toggleLiveTracking()"><span class="dot"></span><span class="btn-label"> Live volgen</span></button>
+    <button class="btn btn-ghost editor-only" onclick="document.getElementById('routePhotoInput').click()" title="Route uit foto's — voegt een route toe op basis van GPS-data uit meerdere foto's, zonder losse stops aan te maken">📍<span class="btn-label"> Route uit foto's</span></button>
     <input type="file" id="routePhotoInput" multiple accept="image/*" style="display:none" onchange="importRouteFromPhotos(Array.from(this.files)); this.value='';">
-    <button class="btn btn-ghost" onclick="exportPhotobook()">📖 Fotoboek</button>
-    <button class="btn btn-ghost" onclick="shareTrip()">🔗 Delen</button>
-    <button class="btn btn-primary editor-only" onclick="openAddModal()">+ Stop toevoegen</button>
+    <button class="btn btn-ghost" onclick="exportPhotobook()" title="Fotoboek">📖<span class="btn-label"> Fotoboek</span></button>
+    <button class="btn btn-ghost" onclick="shareTrip()" title="Delen">🔗<span class="btn-label"> Delen</span></button>
+    <button class="btn btn-primary editor-only" onclick="openAddModal()" title="Stop toevoegen">+<span class="btn-label"> Stop toevoegen</span></button>
   </div>
 </header>
 
@@ -2874,8 +2882,16 @@ function showMobileView(view) {
   if (view === 'map' && map) {
     // Leaflet moet zijn afmetingen herberekenen zodra de kaart weer zichtbaar wordt
     setTimeout(() => map.invalidateSize(), 60);
+    setTimeout(() => map.invalidateSize(), 300);
   }
 }
+
+window.addEventListener('resize', () => {
+  if (map) setTimeout(() => map.invalidateSize(), 100);
+});
+window.addEventListener('orientationchange', () => {
+  if (map) setTimeout(() => map.invalidateSize(), 300);
+});
 
 async function autoBuildAllTales() {
   if (!isEditor) return showToast('👁 Je hebt alleen bekijkrechten voor deze reis');
@@ -3091,6 +3107,7 @@ function showApp() {
   document.getElementById('appRoot').style.display = 'flex';
   googleAccessToken = sessionStorage.getItem('pathale_google_token') || null;
   initMap();
+  setTimeout(() => { if (map) map.invalidateSize(); }, 200);
   loadStops();
   loadDayStories();
   loadTrackpoints();
