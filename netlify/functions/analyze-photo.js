@@ -3,11 +3,19 @@ exports.handler = async (event) => {
     return { statusCode: 405, body: 'Method Not Allowed' };
   }
 
-  let images, lat, lng, placeName, noteText;
+  let images, lat, lng, placeName, noteText, editorCode;
   try {
-    ({ images, lat, lng, placeName, noteText } = JSON.parse(event.body));
+    ({ images, lat, lng, placeName, noteText, editorCode } = JSON.parse(event.body));
   } catch (e) {
     return { statusCode: 400, body: JSON.stringify({ error: 'Ongeldige request body' }) };
+  }
+
+  const requiredEditorCode = process.env.EDITOR_CODE;
+  if (requiredEditorCode) {
+    const ok = typeof editorCode === 'string' && editorCode.trim().length > 0 && editorCode.trim().toLowerCase() === requiredEditorCode.trim().toLowerCase();
+    if (!ok) {
+      return { statusCode: 403, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Bewerkrechten vereist' }) };
+    }
   }
 
   if (!images || !Array.isArray(images) || images.length === 0) {

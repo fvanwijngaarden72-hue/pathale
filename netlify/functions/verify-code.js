@@ -3,21 +3,24 @@ exports.handler = async (event) => {
     return { statusCode: 405, body: 'Method Not Allowed' };
   }
 
-  let code;
+  let code, type;
   try {
-    ({ code } = JSON.parse(event.body));
+    ({ code, type } = JSON.parse(event.body));
   } catch (e) {
     return { statusCode: 400, body: JSON.stringify({ valid: false }) };
   }
 
-  const correct = process.env.ACCESS_CODE;
+  // 'access' = mag de reis bekijken (bestaande gedrag)
+  // 'editor' = mag de reis ook bewerken
+  const envVar = type === 'editor' ? 'EDITOR_CODE' : 'ACCESS_CODE';
+  const correct = process.env[envVar];
 
-  // Als er geen code is ingesteld in Netlify, staat de app open voor iedereen
+  // Geen code ingesteld in Netlify voor dit type = geen beperking
   if (!correct) {
     return { statusCode: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ valid: true, noCodeSet: true }) };
   }
 
-  const valid = typeof code === 'string' && code.trim().toLowerCase() === correct.trim().toLowerCase();
+  const valid = typeof code === 'string' && code.trim().length > 0 && code.trim().toLowerCase() === correct.trim().toLowerCase();
 
   return {
     statusCode: 200,

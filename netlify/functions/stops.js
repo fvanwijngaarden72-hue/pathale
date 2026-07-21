@@ -1,5 +1,14 @@
 const { createClient } = require('@supabase/supabase-js');
 
+function isEditor(editorCode) {
+  const required = process.env.EDITOR_CODE;
+  // Geen EDITOR_CODE ingesteld = geen beperking (backwards compatible)
+  if (!required) return true;
+  return typeof editorCode === 'string' && editorCode.trim().length > 0 && editorCode.trim().toLowerCase() === required.trim().toLowerCase();
+}
+
+const FORBIDDEN = { statusCode: 403, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Bewerkrechten vereist' }) };
+
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method Not Allowed' };
@@ -10,7 +19,18 @@ exports.handler = async (event) => {
     process.env.SUPABASE_KEY
   );
 
-  const { action, payload } = JSON.parse(event.body);
+  let body;
+  try {
+    body = JSON.parse(event.body);
+  } catch (e) {
+    return { statusCode: 400, body: JSON.stringify({ error: 'Ongeldige request body' }) };
+  }
+  const { action, payload, editorCode } = body;
+
+  const WRITE_ACTIONS = ['save', 'update', 'delete', 'upload-photo', 'save-trackpoint', 'clear-trackpoints', 'save-trip-meta'];
+  if (WRITE_ACTIONS.includes(action) && !isEditor(editorCode)) {
+    return FORBIDDEN;
+  }
 
   try {
     if (action === 'load') {

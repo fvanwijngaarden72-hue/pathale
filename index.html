@@ -17,6 +17,8 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exif-js/2.3.0/exif.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
   :root {
     --ink: #1a1612;
@@ -100,6 +102,12 @@
     grid-template-columns: 380px 1fr;
     flex: 1;
     min-height: 0;
+  }
+
+  @media (max-width: 860px) {
+    .app-layout { grid-template-columns: 1fr; }
+    body.mobile-map-view .sidebar { display: none; }
+    body:not(.mobile-map-view) .map-container { display: none; }
   }
 
   .sidebar {
@@ -749,6 +757,34 @@
 
   .gate-error { color: #f87171; font-size: 0.82rem; min-height: 18px; }
 
+  /* Alles met deze class verdwijnt volledig voor kijkers (viewers) */
+  body.viewer-mode .editor-only { display: none !important; }
+
+  .btn-unlock-editor {
+    background: transparent;
+    color: var(--muted);
+    border: 1px dashed var(--border);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 0.76rem;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+  }
+  .btn-unlock-editor:hover { border-color: var(--accent); color: var(--accent-dark); }
+
+  .viewer-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: #f8fafc;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 0.72rem;
+    font-weight: 600;
+  }
+
   /* DAY GROUPS */
   .day-group-header {
     display: flex;
@@ -926,6 +962,21 @@
   }
   .day-story-textarea:focus { outline: none; border-color: var(--accent); }
 
+  .btn-ai-trigger {
+    width: 100%;
+    background: #f0f7ff;
+    color: #2563eb;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    padding: 12px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-ai-trigger:hover { background: #e0f0ff; border-color: #93c5fd; }
+
   .btn-daystory-photos {
     background: #f0fdfa;
     color: var(--accent-dark);
@@ -974,6 +1025,112 @@
     z-index: 2;
   }
   .pv-close:hover { background: rgba(255,255,255,0.22); }
+
+  .pv-download {
+    position: absolute;
+    top: 20px;
+    right: 74px;
+    background: rgba(255,255,255,0.12);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 40px; height: 40px;
+    font-size: 1.05rem;
+    cursor: pointer;
+    z-index: 2;
+  }
+  .pv-download:hover { background: rgba(255,255,255,0.22); }
+
+  .pv-hint {
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255,255,255,0.5);
+    font-size: 0.72rem;
+    text-align: center;
+    max-width: 90vw;
+    padding: 0 12px;
+  }
+
+  /* OPSLAAN-MENU */
+  .save-menu-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15,23,42,0.5);
+    z-index: 6500;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    animation: fadeIn 0.15s ease;
+  }
+  @media (min-width: 640px) {
+    .save-menu-overlay { align-items: center; }
+  }
+
+  .save-menu {
+    background: white;
+    border-radius: 16px 16px 0 0;
+    width: 100%;
+    max-width: 420px;
+    padding: 20px;
+    box-shadow: 0 -8px 30px rgba(0,0,0,0.2);
+    animation: modalIn 0.25s cubic-bezier(0.34,1.56,0.64,1);
+    display: flex;
+    flex-direction: column;
+  }
+  @media (min-width: 640px) {
+    .save-menu { border-radius: 16px; }
+  }
+
+  .save-menu-title {
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--ink);
+    margin-bottom: 14px;
+    text-align: center;
+  }
+
+  .save-menu-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: var(--paper);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.15s;
+  }
+  .save-menu-item:hover { border-color: var(--accent); transform: translateY(-1px); }
+
+  .save-menu-item.save-menu-google {
+    background: linear-gradient(135deg, #fef9f0, #f0fdfa);
+    border: 1.5px solid #fbbf24;
+    order: -1;
+  }
+  .save-menu-item.save-menu-google:hover { border-color: #f59e0b; }
+
+  .save-menu-icon { font-size: 1.4rem; flex-shrink: 0; }
+  .save-menu-text { display: flex; flex-direction: column; gap: 2px; }
+  .save-menu-label { font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 0.92rem; color: var(--ink); }
+  .save-menu-sub { font-size: 0.76rem; color: var(--muted); }
+
+  .save-menu-cancel {
+    width: 100%;
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.88rem;
+    padding: 10px;
+    cursor: pointer;
+  }
+  .save-menu-cancel:hover { color: var(--ink); }
 
   .pv-counter {
     position: absolute;
@@ -1036,17 +1193,21 @@
 <header>
   <div class="logo">Pathale <span>🧭</span></div>
   <div class="header-actions">
-    <button class="btn-live" id="liveTrackBtn" onclick="toggleLiveTracking()"><span class="dot"></span> Live volgen</button>
+    <span class="viewer-badge" id="viewerBadge" style="display:none">👁 Alleen bekijken</span>
+    <button class="btn-unlock-editor" id="unlockEditorBtn" onclick="unlockEditor()" style="display:none">🔓 Bewerkrechten invoeren</button>
+    <button class="btn-live editor-only" id="liveTrackBtn" onclick="toggleLiveTracking()"><span class="dot"></span> Live volgen</button>
+    <button class="btn btn-ghost editor-only" onclick="document.getElementById('routePhotoInput').click()" title="Voegt een route toe op basis van GPS-data uit meerdere foto's, zonder losse stops aan te maken">📍 Route uit foto's</button>
+    <input type="file" id="routePhotoInput" multiple accept="image/*" style="display:none" onchange="importRouteFromPhotos(Array.from(this.files)); this.value='';">
     <button class="btn btn-ghost" onclick="exportPhotobook()">📖 Fotoboek</button>
     <button class="btn btn-ghost" onclick="shareTrip()">🔗 Delen</button>
-    <button class="btn btn-primary" onclick="openAddModal()">+ Stop toevoegen</button>
+    <button class="btn btn-primary editor-only" onclick="openAddModal()">+ Stop toevoegen</button>
   </div>
 </header>
 
 <div class="app-layout">
   <div class="sidebar">
     <div class="sidebar-header">
-      <div class="trip-title" id="tripTitle" onclick="editTripTitle()" title="Tik om te hernoemen">Mijn Reis ✏️</div>
+      <div class="trip-title" id="tripTitle" onclick="editTripTitle()" title="Tik om te hernoemen">Mijn Reis</div>
       <div class="trip-meta" id="tripMeta">Klik op de kaart om een stop toe te voegen</div>
       <div id="tripStatusBadge" style="display:none"></div>
     </div>
@@ -1057,11 +1218,12 @@
       </div>
     </div>
     <div class="sidebar-footer">
-      <button class="btn-autobuild" onclick="autoBuildAllTales()">✨ Bouw mijn verhaal</button>
+      <button class="btn-autobuild editor-only" onclick="autoBuildAllTales()">✨ Bouw mijn verhaal</button>
       <div style="display:flex;gap:8px;margin-top:8px">
-        <button class="btn-cancel" style="flex:1;font-size:0.78rem;padding:8px" id="finishTripBtn" onclick="finishTrip()">🏁 Reis afronden</button>
+        <button class="btn-cancel editor-only" style="flex:1;font-size:0.78rem;padding:8px" id="finishTripBtn" onclick="finishTrip()">🏁 Reis afronden</button>
         <button class="btn-cancel" style="flex:1;font-size:0.78rem;padding:8px" onclick="exportTripData()">⬇️ Reisboek-data</button>
       </div>
+      <button class="btn-cancel" style="width:100%;font-size:0.78rem;padding:8px;margin-top:8px" onclick="openSaveMenu('trip')">📦 Alle foto's opslaan</button>
     </div>
   </div>
 
@@ -1069,17 +1231,17 @@
     <div id="map"></div>
     <div class="map-path-label">JOUW ROUTE</div>
     <div class="map-icon-controls">
-      <button class="map-icon-btn" onclick="openAddModal()" title="Foto toevoegen">📷</button>
+      <button class="map-icon-btn editor-only" onclick="openAddModal()" title="Foto toevoegen">📷</button>
       <button class="map-icon-btn" onclick="centerOnMyLocation()" title="Mijn locatie">🎯</button>
     </div>
-    <button class="add-stop-btn" onclick="openAddModal()">+ Nieuwe stop</button>
+    <button class="add-stop-btn editor-only" onclick="openAddModal()">+ Nieuwe stop</button>
   </div>
 </div>
 
 <div class="bottom-tab-bar">
   <button class="tab-item" onclick="tabComingSoon()"><span>🗺️</span>Journeys</button>
-  <button class="tab-item" onclick="tabComingSoon()"><span>📍</span>Maps</button>
-  <button class="tab-item active" onclick="void(0)"><span>📖</span>Tales</button>
+  <button class="tab-item" id="tabMapsBtn" onclick="showMobileView('map')"><span>📍</span>Maps</button>
+  <button class="tab-item active" id="tabTalesBtn" onclick="showMobileView('list')"><span>📖</span>Tales</button>
   <button class="tab-item" onclick="tabComingSoon()"><span>👤</span>Profile</button>
 </div>
 
@@ -1131,6 +1293,11 @@
         <div class="photo-preview-grid" id="photoPreviewGrid"></div>
       </div>
 
+      <div id="aiTriggerContainer" style="display:none">
+        <button type="button" class="btn-ai-trigger" onclick="analyzePhotos()">✨ Analyseer foto's met AI</button>
+        <div style="font-size:0.76rem;color:var(--muted);margin-top:4px">Stuurt de foto's naar Claude en kost tokens — jij bepaalt wanneer</div>
+      </div>
+
       <div id="aiAnalysisContainer" style="display:none">
         <div class="ai-analysis-box">
           <div class="ai-analysis-header">
@@ -1178,6 +1345,7 @@
       <div class="modal-title" id="dayStoryTitle">Dagverhaal</div>
       <div style="display:flex;align-items:center;gap:8px">
         <button class="btn-daystory-photos" id="dayStoryPhotosBtn" onclick="openPhotoViewer(currentDayStoryDate, 0)">📷 Foto's</button>
+        <button class="btn-daystory-photos" id="dayStoryZipBtn" onclick="openSaveMenu('day')">⬇️ Opslaan</button>
         <button class="modal-close" onclick="document.getElementById('dayStoryModal').style.display='none'">✕</button>
       </div>
     </div>
@@ -1198,7 +1366,7 @@
         </div>
       </div>
 
-      <div class="form-group">
+      <div class="form-group editor-only">
         <label>Foto's bij deze dag <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)">(niet gebonden aan één plek)</span></label>
         <div class="photo-upload-area" id="dayPhotoUploadArea"
           onclick="document.getElementById('dayPhotoInput').click()"
@@ -1213,8 +1381,8 @@
       </div>
     </div>
     <div class="modal-footer" id="dayStoryFooterView">
-      <button class="btn-cancel" onclick="regenerateDayStory()">🔄 Regenereer</button>
-      <button class="btn-cancel" onclick="startEditDayStory()">✏️ Bewerken</button>
+      <button class="btn-cancel editor-only" onclick="regenerateDayStory()">🔄 Regenereer</button>
+      <button class="btn-cancel editor-only" onclick="startEditDayStory()">✏️ Bewerken</button>
       <button class="btn-save" onclick="document.getElementById('dayStoryModal').style.display='none'">Sluiten</button>
     </div>
     <div class="modal-footer" id="dayStoryFooterEdit" style="display:none">
@@ -1228,11 +1396,38 @@
 <!-- FOTO VIEWER -->
 <div class="photo-viewer-overlay" id="photoViewerOverlay" style="display:none" onclick="if(event.target===this)closePhotoViewer()">
   <button class="pv-close" onclick="closePhotoViewer()">✕</button>
+  <button class="pv-download" onclick="openSaveMenu('single')" title="Opslaan">⬇️</button>
   <div class="pv-counter" id="pvCounter"></div>
   <button class="pv-nav pv-prev" onclick="photoViewerPrev()">‹</button>
   <img class="pv-image" id="pvImage" src="">
   <button class="pv-nav pv-next" onclick="photoViewerNext()">›</button>
   <div class="pv-caption" id="pvCaption"></div>
+  <div class="pv-hint">💡 Tip: houd de foto ingedrukt om 'm direct in Foto's op te slaan</div>
+</div>
+
+<!-- OPSLAAN-MENU -->
+<div class="save-menu-overlay" id="saveMenuOverlay" style="display:none" onclick="if(event.target===this)closeSaveMenu()">
+  <div class="save-menu">
+    <div class="save-menu-title" id="saveMenuTitle">Foto opslaan</div>
+
+    <button class="save-menu-item save-menu-google" onclick="saveMenuGooglePhotos()">
+      <span class="save-menu-icon">📤</span>
+      <span class="save-menu-text">
+        <span class="save-menu-label">Naar Google Photos</span>
+        <span class="save-menu-sub" id="googleConnStatus">Tik om te verbinden</span>
+      </span>
+    </button>
+
+    <button class="save-menu-item" onclick="saveMenuDownload()">
+      <span class="save-menu-icon">⬇️</span>
+      <span class="save-menu-text">
+        <span class="save-menu-label">Downloaden</span>
+        <span class="save-menu-sub">Naar Bestanden / Downloads</span>
+      </span>
+    </button>
+
+    <button class="save-menu-cancel" onclick="closeSaveMenu()">Annuleren</button>
+  </div>
 </div>
 
 </div>
@@ -1248,6 +1443,7 @@ let _locResults = [];
 let dayStories = {};
 let dayStoriesPhotos = {};
 let tripMeta = { title: 'Mijn Reis', status: 'actief', finished_at: null };
+let isEditor = true;
 let liveTracking = false, liveWatchId = null, liveTrail = [], liveTrailLine = null, lastSavedPoint = null;
 let currentDayStoryDate = null, currentDayStoryItems = [], currentDayStoryStop = null;
 
@@ -1299,6 +1495,7 @@ function initMap() {
   }).addTo(map);
 
   map.on('click', function(e) {
+    if (!isEditor) return;
     selectedLat = e.latlng.lat;
     selectedLng = e.latlng.lng;
     document.getElementById('coordDisplay').textContent = `${selectedLat.toFixed(5)}, ${selectedLng.toFixed(5)}`;
@@ -1336,7 +1533,7 @@ async function loadStops() {
     const res = await fetch('/.netlify/functions/stops', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'load' })
+      body: JSON.stringify({ editorCode: getEditorCode(), action: 'load' })
     });
     const data = await res.json();
     stops = data.stops || [];
@@ -1397,7 +1594,7 @@ function renderStops() {
         ${thumb ? `<div class="day-summary-thumb-wrap" data-daythumb="1"><img class="day-summary-thumb" src="${thumb}" loading="lazy">${dayPhotoCount > 1 ? `<span class="day-summary-thumb-count">+${dayPhotoCount - 1}</span>` : ''}</div>` : ''}
         <div>
           <div class="day-summary-snippet">${snippet}</div>
-          <span class="day-summary-readmore">${hasStory ? '[Lees meer]' : '[Bouw dagverhaal]'}</span>
+          <span class="day-summary-readmore">${hasStory ? '[Lees meer]' : (isEditor ? '[Bouw dagverhaal]' : 'Nog geen dagverhaal')}</span>
         </div>
       </div>`;
     if (thumb) {
@@ -1444,6 +1641,7 @@ function renderStops() {
 // MODAL
 // ==========================================
 function openAddModal() {
+  if (!isEditor) return showToast('👁 Je hebt alleen bekijkrechten voor deze reis');
   editingStop = null;
   document.querySelector('#addModal .modal-title').textContent = 'Nieuwe stop toevoegen';
   document.getElementById('addModal').style.display = 'flex';
@@ -1452,6 +1650,7 @@ function openAddModal() {
   document.getElementById('locationSearch').value = '';
   document.getElementById('locationResults').innerHTML = '';
   document.getElementById('existingPhotosNote').style.display = 'none';
+  document.getElementById('aiTriggerContainer').style.display = 'none';
   document.getElementById('aiAnalysisContainer').style.display = 'none';
   document.getElementById('aiAnalysisText').textContent = '';
   document.getElementById('transcriptionText').textContent = '';
@@ -1469,6 +1668,7 @@ function openAddModal() {
 }
 
 function openEditModal(id) {
+  if (!isEditor) return showToast('👁 Je hebt alleen bekijkrechten voor deze reis');
   const stop = stops.find(s => s.id === id);
   if (!stop) return;
   document.getElementById('detailOverlay').style.display = 'none';
@@ -1495,6 +1695,9 @@ function openEditModal(id) {
     const note = document.getElementById('existingPhotosNote');
     note.style.display = 'block';
     note.textContent = `📸 ${existing} bestaande foto('s) blijven bewaard — nieuwe foto's worden toegevoegd`;
+    if (!stop.ai_analysis) {
+      document.getElementById('aiTriggerContainer').style.display = 'block';
+    }
   }
 }
 
@@ -1579,6 +1782,43 @@ function extractExifMeta(file) {
   });
 }
 
+// ==========================================
+// ROUTE UIT FOTO'S (locatie uit élke foto, geen losse stops nodig)
+// ==========================================
+async function importRouteFromPhotos(files) {
+  if (!isEditor) return showToast('👁 Je hebt alleen bekijkrechten voor deze reis');
+  if (!files || files.length === 0) return;
+  showToast(`📍 ${files.length} foto's controleren op locatiegegevens...`);
+
+  const points = [];
+  for (const file of files) {
+    const meta = await extractExifMeta(file);
+    if (meta && meta.gps) {
+      const ts = meta.dateTaken ? new Date(meta.dateTaken).toISOString() : new Date().toISOString();
+      points.push({ lat: meta.gps.lat, lng: meta.gps.lng, created_at: ts });
+    }
+  }
+
+  if (points.length === 0) {
+    showToast(`⚠️ Geen locatiegegevens gevonden — controleer of locatie aanstond bij het maken`);
+    return;
+  }
+
+  points.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+  showToast(`📍 ${points.length} van de ${files.length} foto's opslaan...`);
+
+  await Promise.all(points.map(p =>
+    fetch('/.netlify/functions/stops', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ editorCode: getEditorCode(), action: 'save-trackpoint', payload: p })
+    }).catch(() => {})
+  ));
+
+  await loadTrackpoints();
+  showToast(`✅ Route bijgewerkt met ${points.length} punten uit je foto's!`);
+}
+
 async function processPhotoFiles(files) {
   if (files.length === 0) return;
   showToast('📸 Foto\'s verwerken...');
@@ -1617,7 +1857,9 @@ async function processPhotoFiles(files) {
     photoDataURLs.push(dataURL);
   }
   renderPhotoPreviews();
-  analyzePhotos();
+  if (document.getElementById('aiAnalysisContainer').style.display === 'none') {
+    document.getElementById('aiTriggerContainer').style.display = 'block';
+  }
 }
 
 function compressImage(file, maxSize, quality) {
@@ -1656,8 +1898,10 @@ function removePhoto(index) {
   photoNames.splice(index, 1);
   photoDataURLs.splice(index, 1);
   renderPhotoPreviews();
+  const hasExistingUnanalyzed = editingStop && (editingStop.photos || []).length > 0 && !editingStop.ai_analysis;
   if (photoDataURLs.length === 0) {
     document.getElementById('aiAnalysisContainer').style.display = 'none';
+    document.getElementById('aiTriggerContainer').style.display = hasExistingUnanalyzed ? 'block' : 'none';
   }
 }
 
@@ -1708,6 +1952,7 @@ async function analyzePhotos() {
     return;
   }
 
+  document.getElementById('aiTriggerContainer').style.display = 'none';
   container.style.display = 'block';
   spinner.style.display = 'block';
   regenBtn.style.display = 'none';
@@ -1721,7 +1966,7 @@ async function analyzePhotos() {
     const res = await fetch('/.netlify/functions/analyze-photo', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ images, lat: selectedLat, lng: selectedLng, placeName, noteText })
+      body: JSON.stringify({ editorCode: getEditorCode(), images, lat: selectedLat, lng: selectedLng, placeName, noteText })
     });
     const data = await res.json();
     spinner.style.display = 'none';
@@ -1842,7 +2087,7 @@ async function saveStop() {
       const res = await fetch('/.netlify/functions/stops', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'upload-photo', payload: { filename, base64, mimetype } })
+        body: JSON.stringify({ editorCode: getEditorCode(), action: 'upload-photo', payload: { filename, base64, mimetype } })
       });
       const data = await res.json();
       if (data.url) {
@@ -1871,7 +2116,7 @@ async function saveStop() {
     const res = await fetch('/.netlify/functions/stops', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: isEdit ? 'update' : 'save', payload })
+      body: JSON.stringify({ editorCode: getEditorCode(), action: isEdit ? 'update' : 'save', payload })
     });
     const data = await res.json();
     if (data.stop) {
@@ -1917,7 +2162,7 @@ function showDetail(stop) {
       <div class="detail-date">📍 ${stop.lat.toFixed(4)}, ${stop.lng.toFixed(4)} · ${new Date(stop.created_at).toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</div>
       ${stop.note ? `<div class="detail-note">${stop.note}</div>` : ''}
       ${stop.ai_analysis ? `<div class="detail-ai"><div class="detail-ai-title">✨ AI Analyse</div><div class="detail-ai-text">${stop.ai_analysis}</div></div>` : ''}
-      <div style="display:flex;gap:10px">
+      <div style="display:flex;gap:10px" class="editor-only">
         <button class="btn-save" onclick="openEditModal('${stop.id}')">✏️ Bewerken</button>
         <button class="btn-cancel" style="color:#dc2626;border-color:#fca5a5" onclick="deleteStop('${stop.id}')">🗑 Verwijderen</button>
       </div>
@@ -1926,12 +2171,13 @@ function showDetail(stop) {
 }
 
 async function deleteStop(id) {
+  if (!isEditor) return showToast('👁 Je hebt alleen bekijkrechten voor deze reis');
   if (!confirm('Weet je zeker dat je deze stop wilt verwijderen?')) return;
   try {
     const res = await fetch('/.netlify/functions/stops', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'delete', payload: { id } })
+      body: JSON.stringify({ editorCode: getEditorCode(), action: 'delete', payload: { id } })
     });
     const data = await res.json();
     if (data.success) {
@@ -1959,7 +2205,7 @@ async function loadDayStories() {
     const res = await fetch('/.netlify/functions/day-story', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'load' })
+      body: JSON.stringify({ editorCode: getEditorCode(), action: 'load' })
     });
     const data = await res.json();
     dayStories = {};
@@ -1983,14 +2229,19 @@ function openDayStory(dateKey) {
   cancelEditDayStory();
   const hasPhotos = items.some(s => (s.photos || []).length > 0) || (dayStoriesPhotos[dateKey] || []).length > 0;
   document.getElementById('dayStoryPhotosBtn').style.display = hasPhotos ? 'inline-block' : 'none';
+  document.getElementById('dayStoryZipBtn').style.display = hasPhotos ? 'inline-block' : 'none';
   renderDayPhotoGrid();
 
   if (dayStories[dateKey]) {
     document.getElementById('dayStorySpinner').style.display = 'none';
     document.getElementById('dayStoryStatus').textContent = '✨ Dagverhaal';
     document.getElementById('dayStoryText').textContent = dayStories[dateKey];
-  } else {
+  } else if (isEditor) {
     generateDayStory();
+  } else {
+    document.getElementById('dayStorySpinner').style.display = 'none';
+    document.getElementById('dayStoryStatus').textContent = '';
+    document.getElementById('dayStoryText').textContent = 'Nog geen dagverhaal geschreven voor deze dag.';
   }
 }
 
@@ -2006,7 +2257,7 @@ async function generateDayStory(baseText) {
     const res = await fetch('/.netlify/functions/day-story', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'generate', date: currentDayStoryDate, items, tripTitle: tripMeta.title || 'Pathale', baseText })
+      body: JSON.stringify({ editorCode: getEditorCode(), action: 'generate', date: currentDayStoryDate, items, tripTitle: tripMeta.title || 'Pathale', baseText })
     });
     const data = await res.json();
     document.getElementById('dayStorySpinner').style.display = 'none';
@@ -2020,7 +2271,7 @@ async function generateDayStory(baseText) {
       fetch('/.netlify/functions/day-story', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'save', date: currentDayStoryDate, story: data.story })
+        body: JSON.stringify({ editorCode: getEditorCode(), action: 'save', date: currentDayStoryDate, story: data.story })
       }).catch(()=>{});
     } else {
       document.getElementById('dayStoryStatus').textContent = '⚠️ Mislukt';
@@ -2034,10 +2285,12 @@ async function generateDayStory(baseText) {
 }
 
 function regenerateDayStory() {
+  if (!isEditor) return showToast('👁 Je hebt alleen bekijkrechten voor deze reis');
   generateDayStory();
 }
 
 function compileDayStoryWithAI() {
+  if (!isEditor) return showToast('👁 Je hebt alleen bekijkrechten voor deze reis');
   const text = document.getElementById('dayStoryTextarea').value.trim();
   if (!text) return showToast('Vul eerst wat tekst in');
   generateDayStory(text);
@@ -2067,6 +2320,7 @@ function handleDayPhotoDrop(e) {
 }
 
 async function handleDayPhotoFiles(files) {
+  if (!isEditor) return showToast('👁 Je hebt alleen bekijkrechten voor deze reis');
   if (files.length === 0) return;
   showToast('📸 Dagfoto\'s verwerken...');
 
@@ -2084,7 +2338,7 @@ async function handleDayPhotoFiles(files) {
       const res = await fetch('/.netlify/functions/stops', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'upload-photo', payload: { filename, base64, mimetype } })
+        body: JSON.stringify({ editorCode: getEditorCode(), action: 'upload-photo', payload: { filename, base64, mimetype } })
       });
       const data = await res.json();
       if (data.url) current.push(data.url);
@@ -2106,7 +2360,7 @@ async function saveDayPhotos() {
     await fetch('/.netlify/functions/day-story', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'save-photos', date: currentDayStoryDate, photos: dayStoriesPhotos[currentDayStoryDate] || [] })
+      body: JSON.stringify({ editorCode: getEditorCode(), action: 'save-photos', date: currentDayStoryDate, photos: dayStoriesPhotos[currentDayStoryDate] || [] })
     });
   } catch(e) {
     showToast('⚠️ Opslaan van dagfoto\'s mislukt');
@@ -2122,6 +2376,7 @@ function renderDayPhotoGrid() {
 }
 
 async function removeDayPhoto(index) {
+  if (!isEditor) return showToast('👁 Je hebt alleen bekijkrechten voor deze reis');
   const photos = dayStoriesPhotos[currentDayStoryDate] || [];
   photos.splice(index, 1);
   dayStoriesPhotos[currentDayStoryDate] = photos;
@@ -2171,7 +2426,236 @@ function handlePhotoViewerKeys(e) {
   else if (e.key === 'ArrowLeft') photoViewerPrev();
 }
 
+// ==========================================
+// FOTO'S DOWNLOADEN
+// ==========================================
+async function downloadImage(url, filename) {
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(blobUrl);
+  } catch(e) {
+    showToast('⚠️ Downloaden mislukt');
+  }
+}
+
+function downloadCurrentPhoto() {
+  const img = pvImages[pvIndex];
+  if (!img) return;
+  const safeName = (img.stopName || 'foto').replace(/[^a-zA-Z0-9]+/g, '_');
+  showToast('⬇️ Foto downloaden...');
+  downloadImage(img.url, `pathale_${safeName}_${pvIndex+1}.jpg`);
+}
+
+async function downloadPhotosAsZip(images, zipName) {
+  if (!images || images.length === 0) return showToast('Geen foto\'s om te downloaden');
+  showToast(`📦 ZIP maken van ${images.length} foto's...`);
+  try {
+    const zip = new JSZip();
+    for (let i = 0; i < images.length; i++) {
+      try {
+        const res = await fetch(images[i].url);
+        const blob = await res.blob();
+        const ext = blob.type.includes('png') ? 'png' : 'jpg';
+        const safeName = (images[i].stopName || 'foto').replace(/[^a-zA-Z0-9]+/g, '_');
+        zip.file(`${String(i+1).padStart(2,'0')}_${safeName}.${ext}`, blob);
+      } catch(e) {}
+    }
+    const content = await zip.generateAsync({ type: 'blob' });
+    const blobUrl = URL.createObjectURL(content);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = zipName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(blobUrl);
+    showToast('✅ ZIP gedownload!');
+  } catch(e) {
+    showToast('⚠️ ZIP maken mislukt');
+  }
+}
+
+function downloadDayPhotosZip() {
+  const images = getDayPhotos(currentDayStoryDate);
+  downloadPhotosAsZip(images, `pathale_${currentDayStoryDate}.zip`);
+}
+
+function getAllTripPhotos() {
+  const images = [];
+  stops.forEach(s => (s.photos || []).forEach(url => images.push({ url, stopName: s.name })));
+  Object.values(dayStoriesPhotos).forEach(arr => (arr || []).forEach(url => images.push({ url, stopName: 'Dagfoto' })));
+  return images;
+}
+
+function downloadAllTripPhotosZip() {
+  const images = getAllTripPhotos();
+  const safeName = (tripMeta.title || 'reis').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  downloadPhotosAsZip(images, `${safeName}-alle-fotos.zip`);
+}
+
+// ==========================================
+// OPSLAAN-MENU (download / Google Photos)
+// ==========================================
+let _saveMenuScope = null; // 'single' | 'day' | 'trip'
+
+function openSaveMenu(scope) {
+  _saveMenuScope = scope;
+  const titles = {
+    single: 'Deze foto opslaan',
+    day: `Foto's van deze dag opslaan`,
+    trip: `Alle foto's van de reis opslaan`
+  };
+  document.getElementById('saveMenuTitle').textContent = titles[scope] || 'Foto\'s opslaan';
+  document.getElementById('googleConnStatus').textContent = googleAccessToken ? '✅ Verbonden' : 'Tik om te verbinden';
+  document.getElementById('saveMenuOverlay').style.display = 'flex';
+}
+
+function closeSaveMenu() {
+  document.getElementById('saveMenuOverlay').style.display = 'none';
+}
+
+function _saveMenuImages() {
+  if (_saveMenuScope === 'single') {
+    const img = pvImages[pvIndex];
+    return img ? [img] : [];
+  }
+  if (_saveMenuScope === 'day') return getDayPhotos(currentDayStoryDate);
+  if (_saveMenuScope === 'trip') return getAllTripPhotos();
+  return [];
+}
+
+function saveMenuDownload() {
+  closeSaveMenu();
+  if (_saveMenuScope === 'single') return downloadCurrentPhoto();
+  if (_saveMenuScope === 'day') return downloadDayPhotosZip();
+  if (_saveMenuScope === 'trip') return downloadAllTripPhotosZip();
+}
+
+async function saveMenuGooglePhotos() {
+  const images = _saveMenuImages();
+  closeSaveMenu();
+  if (images.length === 0) return showToast('Geen foto\'s om te versturen');
+  await uploadToGooglePhotos(images);
+}
+
+// ==========================================
+// GOOGLE PHOTOS — verbinden en uploaden
+// ==========================================
+let googleAccessToken = null;
+let googleClientId = null;
+let _googleTokenClient = null;
+
+async function getGoogleClientId() {
+  if (googleClientId) return googleClientId;
+  try {
+    const res = await fetch('/.netlify/functions/google-config');
+    const data = await res.json();
+    googleClientId = data.clientId;
+  } catch(e) {}
+  return googleClientId;
+}
+
+async function connectGooglePhotos() {
+  const clientId = await getGoogleClientId();
+  if (!clientId) {
+    showToast('⚠️ Google Photos is nog niet ingesteld — vraag de beheerder om GOOGLE_CLIENT_ID in te stellen');
+    return false;
+  }
+  if (!window.google || !window.google.accounts) {
+    showToast('⚠️ Kon Google niet laden — check je internetverbinding');
+    return false;
+  }
+
+  return new Promise((resolve) => {
+    _googleTokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: clientId,
+      scope: 'https://www.googleapis.com/auth/photoslibrary.appendonly',
+      callback: (resp) => {
+        if (resp && resp.access_token) {
+          googleAccessToken = resp.access_token;
+          sessionStorage.setItem('pathale_google_token', resp.access_token);
+          showToast('✅ Verbonden met Google Photos!');
+          resolve(true);
+        } else {
+          showToast('⚠️ Verbinden met Google Photos mislukt');
+          resolve(false);
+        }
+      },
+      error_callback: () => {
+        showToast('⚠️ Verbinden met Google Photos geannuleerd of mislukt');
+        resolve(false);
+      }
+    });
+    _googleTokenClient.requestAccessToken();
+  });
+}
+
+async function uploadToGooglePhotos(images) {
+  if (!googleAccessToken) {
+    showToast('🔐 Eerst verbinden met Google Photos...');
+    const ok = await connectGooglePhotos();
+    if (!ok) return;
+  }
+
+  showToast(`📤 ${images.length} foto('s) versturen naar Google Photos...`);
+  let success = 0, failed = 0;
+
+  for (const img of images) {
+    try {
+      const imgRes = await fetch(img.url);
+      const blob = await imgRes.blob();
+
+      const uploadRes = await fetch('https://photoslibrary.googleapis.com/v1/uploads', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${googleAccessToken}`,
+          'Content-Type': 'application/octet-stream',
+          'X-Goog-Upload-Content-Type': blob.type || 'image/jpeg',
+          'X-Goog-Upload-Protocol': 'raw'
+        },
+        body: blob
+      });
+
+      if (!uploadRes.ok) {
+        if (uploadRes.status === 401) { googleAccessToken = null; sessionStorage.removeItem('pathale_google_token'); }
+        failed++; continue;
+      }
+      const uploadToken = await uploadRes.text();
+
+      const createRes = await fetch('https://photoslibrary.googleapis.com/v1/mediaItems:batchCreate', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${googleAccessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          newMediaItems: [{
+            description: img.stopName ? `Pathale — ${img.stopName}` : 'Pathale',
+            simpleMediaItem: { uploadToken }
+          }]
+        })
+      });
+
+      if (createRes.ok) success++; else failed++;
+    } catch(e) {
+      failed++;
+    }
+  }
+
+  if (success > 0) showToast(`✅ ${success} foto('s) toegevoegd aan Google Photos${failed > 0 ? `, ${failed} mislukt` : ''}!`);
+  else showToast('⚠️ Versturen naar Google Photos mislukt — probeer opnieuw te verbinden');
+}
+
 function startEditDayStory() {
+  if (!isEditor) return showToast('👁 Je hebt alleen bekijkrechten voor deze reis');
   const currentText = document.getElementById('dayStoryText').textContent;
   document.getElementById('dayStoryTextarea').value = currentText;
   document.getElementById('dayStoryText').style.display = 'none';
@@ -2193,6 +2677,7 @@ function cancelEditDayStory() {
 }
 
 async function saveEditedDayStory() {
+  if (!isEditor) return showToast('👁 Je hebt alleen bekijkrechten voor deze reis');
   const newText = document.getElementById('dayStoryTextarea').value.trim();
   if (!newText) return showToast('Verhaal mag niet leeg zijn');
 
@@ -2205,7 +2690,7 @@ async function saveEditedDayStory() {
     const res = await fetch('/.netlify/functions/day-story', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'save', date: currentDayStoryDate, story: newText })
+      body: JSON.stringify({ editorCode: getEditorCode(), action: 'save', date: currentDayStoryDate, story: newText })
     });
     const data = await res.json();
     if (data.dayStory) showToast('💾 Dagverhaal opgeslagen!');
@@ -2223,10 +2708,11 @@ async function loadTrackpoints() {
     const res = await fetch('/.netlify/functions/stops', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'load-trackpoints' })
+      body: JSON.stringify({ editorCode: getEditorCode(), action: 'load-trackpoints' })
     });
     const data = await res.json();
     const points = (data.trackpoints || []).map(p => [p.lat, p.lng]);
+    if (liveTrailLine) { map.removeLayer(liveTrailLine); liveTrailLine = null; }
     if (points.length > 1) {
       liveTrailLine = L.polyline(points, { color: '#2563eb', weight: 3, opacity: 0.7 }).addTo(map);
     }
@@ -2234,6 +2720,7 @@ async function loadTrackpoints() {
 }
 
 function toggleLiveTracking() {
+  if (!isEditor) return showToast('👁 Je hebt alleen bekijkrechten voor deze reis');
   if (liveTracking) stopLiveTracking();
   else startLiveTracking();
 }
@@ -2264,7 +2751,7 @@ function startLiveTracking() {
       fetch('/.netlify/functions/stops', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'save-trackpoint', payload: { lat: latitude, lng: longitude, created_at: new Date().toISOString() } })
+        body: JSON.stringify({ editorCode: getEditorCode(), action: 'save-trackpoint', payload: { lat: latitude, lng: longitude, created_at: new Date().toISOString() } })
       }).catch(()=>{});
     }
   }, err => {
@@ -2380,7 +2867,18 @@ function tabComingSoon() {
   showToast('🚧 Nog niet beschikbaar — Pathale ondersteunt nu één reis tegelijk');
 }
 
+function showMobileView(view) {
+  document.body.classList.toggle('mobile-map-view', view === 'map');
+  document.getElementById('tabMapsBtn').classList.toggle('active', view === 'map');
+  document.getElementById('tabTalesBtn').classList.toggle('active', view === 'list');
+  if (view === 'map' && map) {
+    // Leaflet moet zijn afmetingen herberekenen zodra de kaart weer zichtbaar wordt
+    setTimeout(() => map.invalidateSize(), 60);
+  }
+}
+
 async function autoBuildAllTales() {
+  if (!isEditor) return showToast('👁 Je hebt alleen bekijkrechten voor deze reis');
   if (stops.length === 0) return showToast('Nog geen stops om een verhaal van te maken');
 
   const groups = {};
@@ -2407,7 +2905,7 @@ async function autoBuildAllTales() {
       const res = await fetch('/.netlify/functions/day-story', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'generate', date: dateKey, items, tripTitle: 'Pathale' })
+        body: JSON.stringify({ editorCode: getEditorCode(), action: 'generate', date: dateKey, items, tripTitle: 'Pathale' })
       });
       const data = await res.json();
       if (data.story) {
@@ -2415,7 +2913,7 @@ async function autoBuildAllTales() {
         fetch('/.netlify/functions/day-story', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'save', date: dateKey, story: data.story })
+          body: JSON.stringify({ editorCode: getEditorCode(), action: 'save', date: dateKey, story: data.story })
         }).catch(()=>{});
       }
     } catch(e) {}
@@ -2435,7 +2933,7 @@ async function loadTripMeta() {
     const res = await fetch('/.netlify/functions/stops', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'load-trip-meta' })
+      body: JSON.stringify({ editorCode: getEditorCode(), action: 'load-trip-meta' })
     });
     const data = await res.json();
     if (data.tripMeta) tripMeta = data.tripMeta;
@@ -2444,12 +2942,14 @@ async function loadTripMeta() {
 }
 
 function renderTripMeta() {
-  document.getElementById('tripTitle').innerHTML = `${tripMeta.title} <span style="font-size:0.8rem;opacity:0.5">✏️</span>`;
+  const titleEl = document.getElementById('tripTitle');
+  titleEl.innerHTML = isEditor ? `${tripMeta.title} <span style="font-size:0.8rem;opacity:0.5">✏️</span>` : tripMeta.title;
+  titleEl.style.cursor = isEditor ? 'pointer' : 'default';
   const badge = document.getElementById('tripStatusBadge');
   if (tripMeta.status === 'voltooid') {
     const d = tripMeta.finished_at ? new Date(tripMeta.finished_at).toLocaleDateString('nl-NL',{day:'numeric',month:'long',year:'numeric'}) : '';
     badge.style.display = 'block';
-    badge.innerHTML = `<span class="trip-status-badge">✅ Voltooid${d ? ' op ' + d : ''} <a href="#" onclick="reopenTrip();return false;" style="color:inherit;text-decoration:underline;margin-left:4px">heropenen</a></span>`;
+    badge.innerHTML = `<span class="trip-status-badge">✅ Voltooid${d ? ' op ' + d : ''} <a href="#" class="editor-only" onclick="reopenTrip();return false;" style="color:inherit;text-decoration:underline;margin-left:4px">heropenen</a></span>`;
     document.getElementById('finishTripBtn').style.display = 'none';
   } else {
     badge.style.display = 'none';
@@ -2462,7 +2962,7 @@ async function saveTripMeta(fields) {
     const res = await fetch('/.netlify/functions/stops', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'save-trip-meta', payload: { ...tripMeta, ...fields } })
+      body: JSON.stringify({ editorCode: getEditorCode(), action: 'save-trip-meta', payload: { ...tripMeta, ...fields } })
     });
     const data = await res.json();
     if (data.tripMeta) tripMeta = data.tripMeta;
@@ -2473,11 +2973,13 @@ async function saveTripMeta(fields) {
 }
 
 function editTripTitle() {
+  if (!isEditor) return showToast('👁 Je hebt alleen bekijkrechten voor deze reis');
   const newTitle = prompt('Naam van je reis:', tripMeta.title);
   if (newTitle && newTitle.trim()) saveTripMeta({ title: newTitle.trim() });
 }
 
 function finishTrip() {
+  if (!isEditor) return showToast('👁 Je hebt alleen bekijkrechten voor deze reis');
   if (stops.length === 0) return showToast('Voeg eerst een stop toe');
   if (!confirm('Reis afronden? Je kunt daarna nog steeds stops toevoegen en de reis heropenen — dit zet alleen een "voltooid"-markering met datum.')) return;
   saveTripMeta({ status: 'voltooid', finished_at: new Date().toISOString() });
@@ -2485,6 +2987,7 @@ function finishTrip() {
 }
 
 function reopenTrip() {
+  if (!isEditor) return showToast('👁 Je hebt alleen bekijkrechten voor deze reis');
   saveTripMeta({ status: 'actief', finished_at: null });
   showToast('↩️ Reis heropend');
 }
@@ -2586,11 +3089,66 @@ async function checkAccessCode() {
 function showApp() {
   document.getElementById('gateScreen').style.display = 'none';
   document.getElementById('appRoot').style.display = 'flex';
+  googleAccessToken = sessionStorage.getItem('pathale_google_token') || null;
   initMap();
   loadStops();
   loadDayStories();
   loadTrackpoints();
   loadTripMeta();
+  determineEditorStatus();
+}
+
+// ==========================================
+// KIJKER vs BEWERKER
+// ==========================================
+function getEditorCode() {
+  return localStorage.getItem('pathale_editor_code') || '';
+}
+
+async function determineEditorStatus() {
+  try {
+    const res = await fetch('/.netlify/functions/verify-code', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: getEditorCode(), type: 'editor' })
+    });
+    const data = await res.json();
+    isEditor = !!data.valid;
+  } catch(e) {
+    isEditor = false;
+  }
+  applyEditorUI();
+}
+
+function applyEditorUI() {
+  document.body.classList.toggle('viewer-mode', !isEditor);
+  document.getElementById('unlockEditorBtn').style.display = isEditor ? 'none' : 'inline-block';
+  document.getElementById('viewerBadge').style.display = isEditor ? 'none' : 'inline-flex';
+  renderTripMeta();
+  if (stops.length > 0) renderStops();
+}
+
+async function unlockEditor() {
+  const code = prompt('Voer de bewerkcode in om wijzigingen te mogen maken:');
+  if (!code) return;
+  try {
+    const res = await fetch('/.netlify/functions/verify-code', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, type: 'editor' })
+    });
+    const data = await res.json();
+    if (data.valid) {
+      localStorage.setItem('pathale_editor_code', code);
+      isEditor = true;
+      applyEditorUI();
+      showToast('🔓 Bewerkrechten geactiveerd!');
+    } else {
+      showToast('⚠️ Onjuiste code');
+    }
+  } catch(e) {
+    showToast('⚠️ Kon niet verbinden');
+  }
 }
 
 async function initGate() {
