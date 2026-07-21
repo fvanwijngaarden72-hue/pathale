@@ -799,12 +799,30 @@
   }
 
   .day-summary-body { display: flex; gap: 10px; align-items: flex-start; }
+  .day-summary-thumb-wrap {
+    position: relative;
+    flex-shrink: 0;
+    cursor: pointer;
+  }
   .day-summary-thumb {
     width: 64px; height: 64px;
     border-radius: 8px;
     object-fit: cover;
     flex-shrink: 0;
     background: var(--border);
+    transition: opacity 0.15s;
+  }
+  .day-summary-thumb-wrap:hover .day-summary-thumb { opacity: 0.85; }
+  .day-summary-thumb-count {
+    position: absolute;
+    bottom: 3px;
+    right: 3px;
+    background: rgba(0,0,0,0.65);
+    color: white;
+    font-size: 0.65rem;
+    font-weight: 600;
+    padding: 1px 5px;
+    border-radius: 5px;
   }
   .day-summary-snippet {
     font-size: 0.82rem;
@@ -891,6 +909,116 @@
     line-height: 1.8;
     color: var(--ink);
     white-space: pre-wrap;
+  }
+
+  .day-story-textarea {
+    width: 100%;
+    min-height: 220px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.95rem;
+    line-height: 1.8;
+    color: var(--ink);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    resize: vertical;
+    background: white;
+  }
+  .day-story-textarea:focus { outline: none; border-color: var(--accent); }
+
+  .btn-daystory-photos {
+    background: #f0fdfa;
+    color: var(--accent-dark);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 0.78rem;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-daystory-photos:hover { border-color: var(--accent); }
+
+  /* FOTO VIEWER */
+  .photo-viewer-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10,10,10,0.94);
+    z-index: 6000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    animation: fadeIn 0.2s ease;
+  }
+
+  .pv-image {
+    max-width: 88vw;
+    max-height: 78vh;
+    object-fit: contain;
+    border-radius: 6px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+  }
+
+  .pv-close {
+    position: absolute;
+    top: 20px;
+    right: 24px;
+    background: rgba(255,255,255,0.12);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 40px; height: 40px;
+    font-size: 1.1rem;
+    cursor: pointer;
+    z-index: 2;
+  }
+  .pv-close:hover { background: rgba(255,255,255,0.22); }
+
+  .pv-counter {
+    position: absolute;
+    top: 24px;
+    left: 24px;
+    color: rgba(255,255,255,0.75);
+    font-size: 0.85rem;
+    font-family: 'DM Sans', sans-serif;
+    background: rgba(255,255,255,0.1);
+    padding: 6px 14px;
+    border-radius: 50px;
+  }
+
+  .pv-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(255,255,255,0.12);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 48px; height: 48px;
+    font-size: 1.8rem;
+    line-height: 1;
+    cursor: pointer;
+    z-index: 2;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .pv-nav:hover { background: rgba(255,255,255,0.25); }
+  .pv-prev { left: 16px; }
+  .pv-next { right: 16px; }
+
+  .pv-caption {
+    margin-top: 16px;
+    color: white;
+    font-size: 0.95rem;
+    font-weight: 500;
+    text-align: center;
+    max-width: 80vw;
+  }
+
+  @media (max-width: 640px) {
+    .pv-nav { width: 40px; height: 40px; font-size: 1.5rem; }
+    .pv-prev { left: 6px; }
+    .pv-next { right: 6px; }
   }
 </style>
 </head>
@@ -1014,10 +1142,10 @@
         </div>
       </div>
 
-      <div class="voice-section" id="voiceSection" style="display:none">
-        <div class="voice-header">🎤 Wil je nog iets inspreken bij deze foto('s)?</div>
+      <div class="voice-section" id="voiceSection">
+        <div class="voice-header">🎤 Notitie inspreken (optioneel)</div>
         <div class="voice-controls">
-          <button class="btn-record" id="recordBtn" onclick="toggleRecording()">🎙 Opnemen</button>
+          <button class="btn-record" id="recordBtn" onclick="toggleRecording('stopNote')">🎙 Opnemen</button>
           <span style="font-size:0.8rem;color:var(--muted)" id="recordingStatus">Druk om in te spreken</span>
         </div>
         <div class="transcription-text" id="transcriptionText"></div>
@@ -1048,7 +1176,10 @@
   <div class="modal">
     <div class="modal-header">
       <div class="modal-title" id="dayStoryTitle">Dagverhaal</div>
-      <button class="modal-close" onclick="document.getElementById('dayStoryModal').style.display='none'">✕</button>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button class="btn-daystory-photos" id="dayStoryPhotosBtn" onclick="openPhotoViewer(currentDayStoryDate, 0)">📷 Foto's</button>
+        <button class="modal-close" onclick="document.getElementById('dayStoryModal').style.display='none'">✕</button>
+      </div>
     </div>
     <div class="modal-body">
       <div class="ai-analysis-box" id="dayStoryBox">
@@ -1057,13 +1188,37 @@
           <span id="dayStoryStatus">Verhaal schrijven...</span>
         </div>
         <div class="day-story-text" id="dayStoryText"></div>
+        <textarea class="day-story-textarea" id="dayStoryTextarea" style="display:none"></textarea>
+        <div class="voice-section" id="dayStoryVoiceSection" style="display:none;margin-top:10px">
+          <div class="voice-controls">
+            <button class="btn-record" id="dayStoryRecordBtn" onclick="toggleRecording('dayStoryTextarea')">🎙 Opnemen</button>
+            <span style="font-size:0.8rem;color:var(--muted)">Spreek een toevoeging of correctie in</span>
+          </div>
+          <div class="transcription-text" id="dayStoryTranscriptionText"></div>
+        </div>
       </div>
     </div>
-    <div class="modal-footer">
+    <div class="modal-footer" id="dayStoryFooterView">
       <button class="btn-cancel" onclick="regenerateDayStory()">🔄 Regenereer</button>
+      <button class="btn-cancel" onclick="startEditDayStory()">✏️ Bewerken</button>
       <button class="btn-save" onclick="document.getElementById('dayStoryModal').style.display='none'">Sluiten</button>
     </div>
+    <div class="modal-footer" id="dayStoryFooterEdit" style="display:none">
+      <button class="btn-cancel" onclick="cancelEditDayStory()">Annuleren</button>
+      <button class="btn-cancel" style="color:#2563eb;border-color:#bfdbfe" onclick="compileDayStoryWithAI()">✨ AI verwerken</button>
+      <button class="btn-save" onclick="saveEditedDayStory()">💾 Opslaan zoals het is</button>
+    </div>
   </div>
+</div>
+
+<!-- FOTO VIEWER -->
+<div class="photo-viewer-overlay" id="photoViewerOverlay" style="display:none" onclick="if(event.target===this)closePhotoViewer()">
+  <button class="pv-close" onclick="closePhotoViewer()">✕</button>
+  <div class="pv-counter" id="pvCounter"></div>
+  <button class="pv-nav pv-prev" onclick="photoViewerPrev()">‹</button>
+  <img class="pv-image" id="pvImage" src="">
+  <button class="pv-nav pv-next" onclick="photoViewerNext()">›</button>
+  <div class="pv-caption" id="pvCaption"></div>
 </div>
 
 </div>
@@ -1117,7 +1272,7 @@ function pickLocation(i) {
   if (map) map.setView([selectedLat, selectedLng], 14);
   showToast('📍 Locatie ingesteld!');
 }
-let isRecording = false, recognition = null, currentTranscription = '';
+let isRecording = false, recognition = null, currentTranscription = '', voiceTargetId = 'stopNote';
 
 // ==========================================
 // MAP
@@ -1210,6 +1365,8 @@ function renderStops() {
     const snippetSource = hasStory ? dayStories[dateKey] : (items[0].stop.ai_analysis || items[0].stop.note || '');
     const snippet = snippetSource ? (snippetSource.length > 140 ? snippetSource.slice(0,140) + '…' : snippetSource) : 'Nog geen verhaal — tik om te genereren.';
 
+    const dayPhotoCount = items.reduce((sum, it) => sum + (it.stop.photos || []).length, 0);
+
     const summaryCard = document.createElement('div');
     summaryCard.className = 'day-summary-card';
     summaryCard.innerHTML = `
@@ -1221,12 +1378,15 @@ function renderStops() {
         <div class="day-summary-badge">📷</div>
       </div>
       <div class="day-summary-body">
-        ${thumb ? `<img class="day-summary-thumb" src="${thumb}" loading="lazy">` : ''}
+        ${thumb ? `<div class="day-summary-thumb-wrap" data-daythumb="1"><img class="day-summary-thumb" src="${thumb}" loading="lazy">${dayPhotoCount > 1 ? `<span class="day-summary-thumb-count">+${dayPhotoCount - 1}</span>` : ''}</div>` : ''}
         <div>
           <div class="day-summary-snippet">${snippet}</div>
           <span class="day-summary-readmore">${hasStory ? '[Lees meer]' : '[Bouw dagverhaal]'}</span>
         </div>
       </div>`;
+    if (thumb) {
+      summaryCard.querySelector('[data-daythumb]').onclick = (e) => { e.stopPropagation(); openPhotoViewer(dateKey, 0); };
+    }
     summaryCard.onclick = () => openDayStory(dateKey);
     list.appendChild(summaryCard);
 
@@ -1278,7 +1438,6 @@ function openAddModal() {
   document.getElementById('existingPhotosNote').style.display = 'none';
   document.getElementById('aiAnalysisContainer').style.display = 'none';
   document.getElementById('aiAnalysisText').textContent = '';
-  document.getElementById('voiceSection').style.display = 'none';
   document.getElementById('transcriptionText').textContent = '';
   document.getElementById('photoPreviewGrid').innerHTML = '';
   photoNames = []; photoDataURLs = []; currentTranscription = '';
@@ -1442,7 +1601,6 @@ async function processPhotoFiles(files) {
     photoDataURLs.push(dataURL);
   }
   renderPhotoPreviews();
-  document.getElementById('voiceSection').style.display = 'block';
   analyzePhotos();
 }
 
@@ -1484,7 +1642,6 @@ function removePhoto(index) {
   renderPhotoPreviews();
   if (photoDataURLs.length === 0) {
     document.getElementById('aiAnalysisContainer').style.display = 'none';
-    document.getElementById('voiceSection').style.display = 'none';
   }
 }
 
@@ -1576,13 +1733,14 @@ async function reverseGeocode(lat, lng) {
 // ==========================================
 // VOICE
 // ==========================================
-function toggleRecording() {
-  if (isRecording) stopRecording(); else startRecording();
+function toggleRecording(targetId) {
+  if (isRecording) stopRecording(); else startRecording(targetId || 'stopNote');
 }
 
-function startRecording() {
+function startRecording(targetId) {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) return showToast('Spraakherkenning niet beschikbaar');
+  voiceTargetId = targetId || 'stopNote';
   recognition = new SR();
   recognition.lang = 'nl-NL';
   recognition.continuous = true;
@@ -1594,31 +1752,50 @@ function startRecording() {
       else interim += e.results[i][0].transcript;
     }
     currentTranscription += final;
-    document.getElementById('transcriptionText').textContent = currentTranscription + interim;
+    const liveEl = document.getElementById(voiceTargetId === 'dayStoryTextarea' ? 'dayStoryTranscriptionText' : 'transcriptionText');
+    if (liveEl) liveEl.textContent = currentTranscription + interim;
   };
   recognition.onerror = () => stopRecording();
   recognition.start();
   isRecording = true;
-  document.getElementById('recordBtn').classList.add('recording');
-  document.getElementById('recordBtn').textContent = '⏹ Stop opname';
-  document.getElementById('recordingStatus').textContent = 'Opname bezig...';
+  updateRecordButtons(true);
 }
 
 function stopRecording() {
   if (recognition) recognition.stop();
   isRecording = false;
-  document.getElementById('recordBtn').classList.remove('recording');
-  document.getElementById('recordBtn').textContent = '🎙 Opnemen';
-  document.getElementById('recordingStatus').textContent = 'Opname gestopt';
+  updateRecordButtons(false);
   if (currentTranscription.trim()) {
-    const el = document.getElementById('stopNote');
-    el.value = el.value ? el.value + '\n\n' + currentTranscription.trim() : currentTranscription.trim();
-    if (document.getElementById('aiAnalysisContainer').style.display !== 'none') {
+    const el = document.getElementById(voiceTargetId);
+    if (el) {
+      el.value = el.value ? el.value + '\n\n' + currentTranscription.trim() : currentTranscription.trim();
+    }
+    if (voiceTargetId === 'dayStoryTextarea') {
+      showToast('🎤 Tekst toegevoegd! Klik op "✨ AI verwerken" om dit te verwerken');
+    } else if (document.getElementById('aiAnalysisContainer').style.display !== 'none') {
       showToast('🎤 Tekst toegevoegd! Klik op "Regenereer" om dit in het AI-verhaal te verwerken');
     } else {
       showToast('🎤 Tekst toegevoegd!');
     }
   }
+  currentTranscription = '';
+}
+
+function updateRecordButtons(recording) {
+  ['recordBtn', 'dayStoryRecordBtn'].forEach(id => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    const isActiveTarget = (id === 'recordBtn' && voiceTargetId !== 'dayStoryTextarea') || (id === 'dayStoryRecordBtn' && voiceTargetId === 'dayStoryTextarea');
+    if (recording && isActiveTarget) {
+      btn.classList.add('recording');
+      btn.textContent = '⏹ Stop opname';
+    } else {
+      btn.classList.remove('recording');
+      btn.textContent = '🎙 Opnemen';
+    }
+  });
+  const status = document.getElementById('recordingStatus');
+  if (status) status.textContent = recording ? 'Opname bezig...' : 'Opname gestopt';
 }
 
 // ==========================================
@@ -1708,8 +1885,17 @@ async function saveStop() {
 function showDetail(stop) {
   const photos = stop.photos || [];
   const cls = ['','one','two','three','many'][Math.min(photos.length, 4)];
+
+  const dateKey = new Date(stop.created_at).toISOString().slice(0,10);
+  const dayStops = stops.filter(s => new Date(s.created_at).toISOString().slice(0,10) === dateKey);
+  let offset = 0;
+  for (const s of dayStops) {
+    if (s.id === stop.id) break;
+    offset += (s.photos || []).length;
+  }
+
   document.getElementById('detailContent').innerHTML = `
-    ${photos.length > 0 ? `<div class="detail-photos ${cls}">${photos.slice(0,4).map(p=>`<img src="${p}" loading="lazy">`).join('')}</div>` : ''}
+    ${photos.length > 0 ? `<div class="detail-photos ${cls}">${photos.slice(0,4).map((p,i)=>`<img src="${p}" loading="lazy" style="cursor:pointer" onclick="openPhotoViewer('${dateKey}', ${offset + i})">`).join('')}</div>` : ''}
     <div class="detail-body">
       <div class="detail-name">${stop.name}</div>
       <div class="detail-date">📍 ${stop.lat.toFixed(4)}, ${stop.lng.toFixed(4)} · ${new Date(stop.created_at).toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</div>
@@ -1774,6 +1960,9 @@ function openDayStory(dateKey) {
   const dateLabel = new Date(items[0].created_at).toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
   document.getElementById('dayStoryTitle').textContent = `📖 ${dateLabel}`;
   document.getElementById('dayStoryModal').style.display = 'flex';
+  cancelEditDayStory();
+  const hasPhotos = items.some(s => (s.photos || []).length > 0);
+  document.getElementById('dayStoryPhotosBtn').style.display = hasPhotos ? 'inline-block' : 'none';
 
   if (dayStories[dateKey]) {
     document.getElementById('dayStorySpinner').style.display = 'none';
@@ -1784,9 +1973,10 @@ function openDayStory(dateKey) {
   }
 }
 
-async function generateDayStory() {
+async function generateDayStory(baseText) {
+  cancelEditDayStory();
   document.getElementById('dayStorySpinner').style.display = 'block';
-  document.getElementById('dayStoryStatus').textContent = 'Verhaal schrijven...';
+  document.getElementById('dayStoryStatus').textContent = baseText ? 'Jouw tekst verwerken...' : 'Verhaal schrijven...';
   document.getElementById('dayStoryText').textContent = '';
 
   const items = currentDayStoryItems.map(s => ({ name: s.name, note: s.note, ai_analysis: s.ai_analysis }));
@@ -1795,7 +1985,7 @@ async function generateDayStory() {
     const res = await fetch('/.netlify/functions/day-story', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'generate', date: currentDayStoryDate, items, tripTitle: 'Pathale' })
+      body: JSON.stringify({ action: 'generate', date: currentDayStoryDate, items, tripTitle: tripMeta.title || 'Pathale', baseText })
     });
     const data = await res.json();
     document.getElementById('dayStorySpinner').style.display = 'none';
@@ -1824,6 +2014,110 @@ async function generateDayStory() {
 
 function regenerateDayStory() {
   generateDayStory();
+}
+
+function compileDayStoryWithAI() {
+  const text = document.getElementById('dayStoryTextarea').value.trim();
+  if (!text) return showToast('Vul eerst wat tekst in');
+  generateDayStory(text);
+}
+
+// ==========================================
+// FOTO VIEWER (per dag)
+// ==========================================
+let pvImages = [], pvIndex = 0;
+
+function getDayPhotos(dateKey) {
+  const dayStops = stops.filter(s => new Date(s.created_at).toISOString().slice(0,10) === dateKey);
+  const images = [];
+  dayStops.forEach(s => {
+    (s.photos || []).forEach(url => images.push({ url, stopName: s.name }));
+  });
+  return images;
+}
+
+function openPhotoViewer(dateKey, startIndex) {
+  pvImages = getDayPhotos(dateKey);
+  if (pvImages.length === 0) return showToast('Geen foto\'s voor deze dag');
+  pvIndex = startIndex || 0;
+  document.getElementById('photoViewerOverlay').style.display = 'flex';
+  renderPhotoViewer();
+  document.addEventListener('keydown', handlePhotoViewerKeys);
+}
+
+function closePhotoViewer() {
+  document.getElementById('photoViewerOverlay').style.display = 'none';
+  document.removeEventListener('keydown', handlePhotoViewerKeys);
+}
+
+function photoViewerNext() {
+  pvIndex = (pvIndex + 1) % pvImages.length;
+  renderPhotoViewer();
+}
+
+function photoViewerPrev() {
+  pvIndex = (pvIndex - 1 + pvImages.length) % pvImages.length;
+  renderPhotoViewer();
+}
+
+function renderPhotoViewer() {
+  const img = pvImages[pvIndex];
+  document.getElementById('pvImage').src = img.url;
+  document.getElementById('pvCaption').textContent = img.stopName;
+  document.getElementById('pvCounter').textContent = `${pvIndex+1} / ${pvImages.length}`;
+  const multi = pvImages.length > 1;
+  document.querySelector('.pv-prev').style.display = multi ? 'flex' : 'none';
+  document.querySelector('.pv-next').style.display = multi ? 'flex' : 'none';
+}
+
+function handlePhotoViewerKeys(e) {
+  if (e.key === 'Escape') closePhotoViewer();
+  else if (e.key === 'ArrowRight') photoViewerNext();
+  else if (e.key === 'ArrowLeft') photoViewerPrev();
+}
+
+function startEditDayStory() {
+  const currentText = document.getElementById('dayStoryText').textContent;
+  document.getElementById('dayStoryTextarea').value = currentText;
+  document.getElementById('dayStoryText').style.display = 'none';
+  document.getElementById('dayStoryTextarea').style.display = 'block';
+  document.getElementById('dayStoryVoiceSection').style.display = 'block';
+  document.getElementById('dayStoryFooterView').style.display = 'none';
+  document.getElementById('dayStoryFooterEdit').style.display = 'flex';
+  document.getElementById('dayStoryTextarea').focus();
+}
+
+function cancelEditDayStory() {
+  if (isRecording && voiceTargetId === 'dayStoryTextarea') stopRecording();
+  document.getElementById('dayStoryText').style.display = 'block';
+  document.getElementById('dayStoryTextarea').style.display = 'none';
+  document.getElementById('dayStoryVoiceSection').style.display = 'none';
+  document.getElementById('dayStoryTranscriptionText').textContent = '';
+  document.getElementById('dayStoryFooterView').style.display = 'flex';
+  document.getElementById('dayStoryFooterEdit').style.display = 'none';
+}
+
+async function saveEditedDayStory() {
+  const newText = document.getElementById('dayStoryTextarea').value.trim();
+  if (!newText) return showToast('Verhaal mag niet leeg zijn');
+
+  document.getElementById('dayStoryText').textContent = newText;
+  dayStories[currentDayStoryDate] = newText;
+  cancelEditDayStory();
+  renderStops();
+
+  try {
+    const res = await fetch('/.netlify/functions/day-story', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'save', date: currentDayStoryDate, story: newText })
+    });
+    const data = await res.json();
+    if (data.dayStory) showToast('💾 Dagverhaal opgeslagen!');
+    else showToast('⚠️ Opslaan mislukt');
+  } catch(e) {
+    showToast('⚠️ Opslaan mislukt — controleer je verbinding');
+  }
 }
 
 // ==========================================

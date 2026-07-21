@@ -12,7 +12,7 @@ exports.handler = async (event) => {
   } catch (e) {
     return { statusCode: 400, body: JSON.stringify({ error: 'Ongeldige request body' }) };
   }
-  const { action, date, items, tripTitle } = body;
+  const { action, date, items, tripTitle, baseText } = body;
 
   try {
     if (action === 'load') {
@@ -30,6 +30,10 @@ exports.handler = async (event) => {
         `Stop ${i+1}: ${s.name}${s.note ? `\nEigen notitie: ${s.note}` : ''}${s.ai_analysis ? `\nAI-beschrijving: ${s.ai_analysis}` : ''}`
       ).join('\n\n');
 
+      const prompt = baseText && baseText.trim()
+        ? `Dit is een concepttekst van een reisdagboek-fragment (${date}) tijdens de reis "${tripTitle || 'Pathale'}", waar de reiziger zelf tekst aan heeft toegevoegd of dingen in heeft gecorrigeerd:\n\n"""\n${baseText.trim()}\n"""\n\nTer referentie, dit zijn de originele stops van die dag:\n\n${stopsText}\n\nHerschrijf de conceptversie tot mooi lopend, sfeervol proza. BELANGRIJK: behoud alle feiten, details en correcties uit de conceptversie exact zoals de reiziger ze heeft opgeschreven — verzin niets nieuws en verander geen feiten. Poets alleen de zinsbouw en flow op tot een samenhangend verhaal. Schrijf in het Nederlands, warm en levendig, maximaal 220 woorden.`
+        : `Dit zijn de stops van één reisdag (${date}) tijdens de reis "${tripTitle || 'Pathale'}":\n\n${stopsText}\n\nSchrijf hiervan één samenhangend, sfeervol reisdagboek-fragment voor deze hele dag — geen opsomming, maar een lopend verhaal dat de stops chronologisch met elkaar verbindt, alsof de reiziger 's avonds terugblikt. Gebruik de eigen notities als persoonlijke kern van het verhaal. Schrijf in het Nederlands, warm en levendig, maximaal 220 woorden.`;
+
       let response;
       try {
         response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -42,10 +46,7 @@ exports.handler = async (event) => {
           body: JSON.stringify({
             model: 'claude-sonnet-4-6',
             max_tokens: 700,
-            messages: [{
-              role: 'user',
-              content: `Dit zijn de stops van één reisdag (${date}) tijdens de reis "${tripTitle || 'Pathale'}":\n\n${stopsText}\n\nSchrijf hiervan één samenhangend, sfeervol reisdagboek-fragment voor deze hele dag — geen opsomming, maar een lopend verhaal dat de stops chronologisch met elkaar verbindt, alsof de reiziger 's avonds terugblikt. Gebruik de eigen notities als persoonlijke kern van het verhaal. Schrijf in het Nederlands, warm en levendig, maximaal 220 woorden.`
-            }]
+            messages: [{ role: 'user', content: prompt }]
           })
         });
       } catch (e) {
