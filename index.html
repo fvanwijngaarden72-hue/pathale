@@ -10,21 +10,24 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Pathale">
-<meta name="theme-color" content="#1a1612">
+<meta name="theme-color" content="#0d9488">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exif-js/2.3.0/exif.js"></script>
 <style>
   :root {
     --ink: #1a1612;
-    --paper: #f5f0e8;
-    --accent: #c8602a;
-    --gold: #d4a853;
-    --muted: #8a7e72;
-    --card: #faf7f2;
-    --border: #e2d9cc;
-    --shadow: rgba(26,22,18,0.12);
+    --paper: #eef3f2;
+    --accent: #0d9488;
+    --accent-dark: #0f766e;
+    --gold: #14b8a6;
+    --muted: #64748b;
+    --card: #ffffff;
+    --border: #e0e7e5;
+    --shadow: rgba(15,23,42,0.08);
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -34,31 +37,47 @@
     background: var(--paper);
     color: var(--ink);
     min-height: 100vh;
-    overflow-x: hidden;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  #appRoot {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
   }
 
   header {
-    background: var(--ink);
+    background: var(--card);
     padding: 16px 32px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    position: sticky;
-    top: 0;
     z-index: 1000;
     border-bottom: 2px solid var(--accent);
+    flex-wrap: wrap;
+    gap: 10px;
+    flex-shrink: 0;
   }
 
   .logo {
-    font-family: 'Playfair Display', serif;
-    font-size: 1.6rem;
-    color: var(--paper);
-    letter-spacing: -0.5px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: var(--accent-dark);
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    text-transform: uppercase;
   }
 
-  .logo span { color: var(--gold); font-style: italic; }
+  .logo span { color: var(--accent); font-style: normal; }
 
-  .header-actions { display: flex; gap: 12px; align-items: center; }
+  .header-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 
   .btn {
     padding: 8px 18px;
@@ -72,14 +91,15 @@
   }
 
   .btn-primary { background: var(--accent); color: white; }
-  .btn-primary:hover { background: #b35524; transform: translateY(-1px); }
-  .btn-ghost { background: transparent; color: var(--paper); border: 1px solid rgba(255,255,255,0.3); }
-  .btn-ghost:hover { border-color: var(--gold); color: var(--gold); }
+  .btn-primary:hover { background: var(--accent-dark); transform: translateY(-1px); }
+  .btn-ghost { background: transparent; color: var(--accent-dark); border: 1px solid var(--border); }
+  .btn-ghost:hover { border-color: var(--accent); background: #f0fdfa; }
 
   .app-layout {
     display: grid;
     grid-template-columns: 380px 1fr;
-    height: calc(100vh - 60px);
+    flex: 1;
+    min-height: 0;
   }
 
   .sidebar {
@@ -90,15 +110,85 @@
     overflow: hidden;
   }
 
+  .sidebar-footer {
+    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .btn-autobuild {
+    width: 100%;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 50px;
+    padding: 12px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.2s;
+    box-shadow: 0 2px 10px rgba(13,148,136,0.35);
+  }
+  .btn-autobuild:hover { background: var(--accent-dark); transform: translateY(-1px); }
+  .btn-autobuild:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+  .bottom-tab-bar {
+    flex-shrink: 0;
+    display: flex;
+    justify-content: space-around;
+    background: white;
+    border-top: 1px solid var(--border);
+    padding: 8px 0 max(8px, env(safe-area-inset-bottom));
+  }
+
+  .tab-item {
+    background: none;
+    border: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    font-size: 0.68rem;
+    color: var(--muted);
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    padding: 4px 12px;
+  }
+  .tab-item span { font-size: 1.1rem; }
+  .tab-item.active { color: var(--accent-dark); font-weight: 600; }
+
   .sidebar-header {
     padding: 20px 24px 16px;
     border-bottom: 1px solid var(--border);
   }
 
   .trip-title {
-    font-family: 'Playfair Display', serif;
-    font-size: 1.3rem;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--ink);
     margin-bottom: 4px;
+    cursor: pointer;
+  }
+  .trip-title:hover { color: var(--accent-dark); }
+
+  .trip-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: #f0fdfa;
+    color: var(--accent-dark);
+    border: 1px solid #99f6e4;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    margin-top: 6px;
   }
 
   .trip-meta { font-size: 0.78rem; color: var(--muted); }
@@ -190,6 +280,44 @@
   .stop-date { font-size: 0.72rem; color: var(--muted); margin-top: 4px; }
 
   .map-container { position: relative; flex: 1; }
+
+  .map-path-label {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    z-index: 999;
+    background: rgba(255,255,255,0.92);
+    color: var(--accent-dark);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  }
+
+  .map-icon-controls {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    z-index: 999;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .map-icon-btn {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.95);
+    border: none;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    font-size: 1.1rem;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+  }
+  .map-icon-btn:hover { background: white; transform: translateY(-1px); }
   #map { width: 100%; height: 100%; z-index: 1; }
 
   .add-stop-btn {
@@ -206,13 +334,13 @@
     font-size: 0.9rem;
     font-weight: 500;
     cursor: pointer;
-    box-shadow: 0 4px 20px rgba(200,96,42,0.4);
+    box-shadow: 0 4px 20px rgba(13,148,136,0.4);
     transition: all 0.2s;
     display: flex;
     align-items: center;
     gap: 8px;
   }
-  .add-stop-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(200,96,42,0.5); }
+  .add-stop-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(13,148,136,0.5); }
 
   .modal-overlay {
     position: fixed;
@@ -512,7 +640,7 @@
     font-weight: 500;
     transition: all 0.2s;
   }
-  .btn-save:hover { background: #b35524; }
+  .btn-save:hover { background: var(--accent-dark); }
   .btn-save:disabled { background: var(--muted); cursor: not-allowed; }
 
   .btn-cancel {
@@ -527,6 +655,20 @@
     transition: all 0.2s;
   }
   .btn-cancel:hover { border-color: var(--ink); color: var(--ink); }
+
+  .loc-result {
+    text-align: left;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.82rem;
+    color: var(--ink);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .loc-result:hover { border-color: var(--accent); background: #fdf8f4; }
 
   .empty-state {
     flex: 1;
@@ -565,13 +707,209 @@
   ::-webkit-scrollbar { width: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* ACCESS GATE */
+  .gate-screen {
+    position: fixed;
+    inset: 0;
+    background: var(--ink);
+    z-index: 5000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 20px;
+    padding: 24px;
+    text-align: center;
+  }
+
+  .gate-logo {
+    font-family: 'Playfair Display', serif;
+    font-size: 2rem;
+    color: var(--paper);
+  }
+  .gate-logo span { color: var(--gold); font-style: italic; }
+
+  .gate-sub { color: var(--muted); font-size: 0.9rem; max-width: 320px; }
+
+  .gate-input {
+    padding: 12px 18px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.05);
+    color: white;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 1rem;
+    width: 240px;
+    text-align: center;
+    letter-spacing: 1px;
+  }
+  .gate-input:focus { outline: none; border-color: var(--gold); }
+  .gate-input::placeholder { color: rgba(255,255,255,0.3); }
+
+  .gate-error { color: #f87171; font-size: 0.82rem; min-height: 18px; }
+
+  /* DAY GROUPS */
+  .day-group-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 2px;
+    margin-top: 4px;
+  }
+
+  .day-summary-card {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 1px 3px var(--shadow);
+  }
+  .day-summary-card:hover { border-color: var(--accent); box-shadow: 0 4px 14px var(--shadow); transform: translateY(-1px); }
+
+  .day-summary-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+
+  .day-summary-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  .day-summary-sub {
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-top: 1px;
+  }
+
+  .day-summary-badge {
+    width: 26px; height: 26px;
+    border-radius: 8px;
+    background: #f0fdfa;
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.8rem;
+    flex-shrink: 0;
+  }
+
+  .day-summary-body { display: flex; gap: 10px; align-items: flex-start; }
+  .day-summary-thumb {
+    width: 64px; height: 64px;
+    border-radius: 8px;
+    object-fit: cover;
+    flex-shrink: 0;
+    background: var(--border);
+  }
+  .day-summary-snippet {
+    font-size: 0.82rem;
+    color: var(--muted);
+    line-height: 1.45;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .day-summary-readmore {
+    color: var(--accent);
+    font-weight: 600;
+    font-size: 0.78rem;
+    margin-top: 4px;
+    display: inline-block;
+  }
+
+  .stop-mini-list { display: flex; flex-direction: column; gap: 2px; padding-left: 4px; }
+  .stop-mini-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 8px;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: background 0.15s;
+  }
+  .stop-mini-row:hover { background: #f0fdfa; }
+  .stop-mini-thumb {
+    width: 34px; height: 34px;
+    border-radius: 7px;
+    object-fit: cover;
+    flex-shrink: 0;
+    background: var(--border);
+    border: 1px solid var(--border);
+  }
+  .stop-mini-dot {
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.72rem; font-weight: 700;
+    flex-shrink: 0;
+  }
+  .stop-mini-info { flex: 1; min-width: 0; }
+  .stop-mini-name { font-size: 0.83rem; font-weight: 500; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .stop-mini-time { font-size: 0.7rem; color: var(--muted); }
+
+  .day-group-label {
+    display: none;
+  }
+
+  /* LIVE TRACKING BUTTON */
+  .btn-live {
+    background: transparent;
+    color: var(--accent-dark);
+    border: 1px solid var(--border);
+    padding: 8px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+  }
+  .btn-live.active {
+    background: #dc2626;
+    border-color: #dc2626;
+    color: white;
+    animation: pulse 2s infinite;
+  }
+  .btn-live .dot {
+    width: 8px; height: 8px; border-radius: 50%; background: currentColor;
+  }
+
+  /* DAY STORY MODAL TEXT */
+  .day-story-text {
+    font-size: 0.95rem;
+    line-height: 1.8;
+    color: var(--ink);
+    white-space: pre-wrap;
+  }
 </style>
 </head>
 <body>
 
+<div class="gate-screen" id="gateScreen" style="display:none">
+  <div class="gate-logo">Path<span>ale</span></div>
+  <div class="gate-sub">Deze reis is besloten. Vraag de toegangscode aan de eigenaar van de reis.</div>
+  <input type="text" class="gate-input" id="gateCode" placeholder="Toegangscode" autocomplete="off" onkeydown="if(event.key==='Enter')checkAccessCode()">
+  <button class="btn btn-primary" onclick="checkAccessCode()">Openen</button>
+  <div class="gate-error" id="gateError"></div>
+</div>
+
+<div id="appRoot" style="display:none">
 <header>
-  <div class="logo">Path<span>ale</span></div>
+  <div class="logo">Pathale <span>🧭</span></div>
   <div class="header-actions">
+    <button class="btn-live" id="liveTrackBtn" onclick="toggleLiveTracking()"><span class="dot"></span> Live volgen</button>
+    <button class="btn btn-ghost" onclick="exportPhotobook()">📖 Fotoboek</button>
     <button class="btn btn-ghost" onclick="shareTrip()">🔗 Delen</button>
     <button class="btn btn-primary" onclick="openAddModal()">+ Stop toevoegen</button>
   </div>
@@ -580,8 +918,9 @@
 <div class="app-layout">
   <div class="sidebar">
     <div class="sidebar-header">
-      <div class="trip-title">Mijn Reis</div>
+      <div class="trip-title" id="tripTitle" onclick="editTripTitle()" title="Tik om te hernoemen">Mijn Reis ✏️</div>
       <div class="trip-meta" id="tripMeta">Klik op de kaart om een stop toe te voegen</div>
+      <div id="tripStatusBadge" style="display:none"></div>
     </div>
     <div class="stops-list" id="stopsList">
       <div class="empty-state">
@@ -589,12 +928,31 @@
         <div class="empty-text">Nog geen stops.<br>Klik op de kaart of gebruik de knop.</div>
       </div>
     </div>
+    <div class="sidebar-footer">
+      <button class="btn-autobuild" onclick="autoBuildAllTales()">✨ Bouw mijn verhaal</button>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn-cancel" style="flex:1;font-size:0.78rem;padding:8px" id="finishTripBtn" onclick="finishTrip()">🏁 Reis afronden</button>
+        <button class="btn-cancel" style="flex:1;font-size:0.78rem;padding:8px" onclick="exportTripData()">⬇️ Reisboek-data</button>
+      </div>
+    </div>
   </div>
 
   <div class="map-container">
     <div id="map"></div>
+    <div class="map-path-label">JOUW ROUTE</div>
+    <div class="map-icon-controls">
+      <button class="map-icon-btn" onclick="openAddModal()" title="Foto toevoegen">📷</button>
+      <button class="map-icon-btn" onclick="centerOnMyLocation()" title="Mijn locatie">🎯</button>
+    </div>
     <button class="add-stop-btn" onclick="openAddModal()">+ Nieuwe stop</button>
   </div>
+</div>
+
+<div class="bottom-tab-bar">
+  <button class="tab-item" onclick="tabComingSoon()"><span>🗺️</span>Journeys</button>
+  <button class="tab-item" onclick="tabComingSoon()"><span>📍</span>Maps</button>
+  <button class="tab-item active" onclick="void(0)"><span>📖</span>Tales</button>
+  <button class="tab-item" onclick="tabComingSoon()"><span>👤</span>Profile</button>
 </div>
 
 <!-- ADD MODAL -->
@@ -606,8 +964,23 @@
     </div>
     <div class="modal-body">
       <div class="form-group">
+        <label>Datum & tijd <span id="dateSourceBadge" style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--accent-dark)"></span></label>
+        <input type="datetime-local" id="stopDateTime" oninput="this.dataset.touched='1'; document.getElementById('dateSourceBadge').textContent='';">
+        <div style="font-size:0.76rem;color:var(--muted)">Kun je later aanpassen — handig als je offline was en foto's terugdateert</div>
+      </div>
+
+      <div class="form-group">
         <label>Naam van de locatie</label>
         <input type="text" id="stopName" placeholder="bijv. Sagrada Família, Barcelona">
+      </div>
+
+      <div class="form-group">
+        <label>Zoek locatie op naam</label>
+        <div style="display:flex;gap:8px">
+          <input type="text" id="locationSearch" placeholder="bijv. Schwerin Slot" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();searchLocation();}">
+          <button type="button" class="btn-save" style="padding:8px 16px" onclick="searchLocation()">🔍 Zoek</button>
+        </div>
+        <div id="locationResults" style="display:flex;flex-direction:column;gap:4px"></div>
       </div>
 
       <div class="form-group">
@@ -618,6 +991,7 @@
 
       <div class="form-group">
         <label>Foto's</label>
+        <div id="existingPhotosNote" style="display:none;font-size:0.8rem;color:var(--muted);background:white;border:1px solid var(--border);border-radius:8px;padding:8px 12px"></div>
         <div class="photo-upload-area" id="photoUploadArea"
           onclick="document.getElementById('photoInput').click()"
           ondragover="handleDragOver(event)"
@@ -636,6 +1010,7 @@
             <span id="aiStatusText">Foto analyseren met AI...</span>
           </div>
           <div class="ai-analysis-text" id="aiAnalysisText"></div>
+          <button type="button" class="btn-record" id="regenBtn" style="margin-top:10px;background:transparent;color:#2563eb;border:1px solid #bfdbfe" onclick="analyzePhotos()">🔄 Regenereer met notitie</button>
         </div>
       </div>
 
@@ -668,12 +1043,80 @@
   </div>
 </div>
 
+<!-- DAY STORY MODAL -->
+<div class="modal-overlay" id="dayStoryModal" style="display:none">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="dayStoryTitle">Dagverhaal</div>
+      <button class="modal-close" onclick="document.getElementById('dayStoryModal').style.display='none'">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="ai-analysis-box" id="dayStoryBox">
+        <div class="ai-analysis-header">
+          <div class="ai-spinner" id="dayStorySpinner"></div>
+          <span id="dayStoryStatus">Verhaal schrijven...</span>
+        </div>
+        <div class="day-story-text" id="dayStoryText"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="regenerateDayStory()">🔄 Regenereer</button>
+      <button class="btn-save" onclick="document.getElementById('dayStoryModal').style.display='none'">Sluiten</button>
+    </div>
+  </div>
+</div>
+
+</div>
+
 <script>
 // ==========================================
 // STATE
 // ==========================================
 let map, stops = [], selectedLat = null, selectedLng = null;
 let photoNames = [], photoDataURLs = [];
+let editingStop = null;
+let _locResults = [];
+let dayStories = {};
+let tripMeta = { title: 'Mijn Reis', status: 'actief', finished_at: null };
+let liveTracking = false, liveWatchId = null, liveTrail = [], liveTrailLine = null, lastSavedPoint = null;
+let currentDayStoryDate = null, currentDayStoryItems = [], currentDayStoryStop = null;
+
+// ==========================================
+// LOCATION SEARCH
+// ==========================================
+async function searchLocation() {
+  const q = document.getElementById('locationSearch').value.trim();
+  if (!q) return;
+  const div = document.getElementById('locationResults');
+  div.innerHTML = '<div style="font-size:0.8rem;color:var(--muted);padding:4px">Zoeken...</div>';
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=5&accept-language=nl`);
+    _locResults = await res.json();
+    if (_locResults.length === 0) {
+      div.innerHTML = '<div style="font-size:0.8rem;color:var(--muted);padding:4px">Niets gevonden — probeer een andere zoekterm</div>';
+      return;
+    }
+    div.innerHTML = _locResults.map((r, i) =>
+      `<button type="button" class="loc-result" onclick="pickLocation(${i})">📍 ${r.display_name}</button>`
+    ).join('');
+  } catch(e) {
+    div.innerHTML = '<div style="font-size:0.8rem;color:var(--muted);padding:4px">Zoeken mislukt</div>';
+  }
+}
+
+function pickLocation(i) {
+  const r = _locResults[i];
+  selectedLat = parseFloat(r.lat);
+  selectedLng = parseFloat(r.lon);
+  document.getElementById('coordDisplay').textContent = `✅ ${r.display_name.split(',').slice(0,2).join(',')} (${selectedLat.toFixed(4)}, ${selectedLng.toFixed(4)})`;
+  document.getElementById('locationResults').innerHTML = '';
+  document.getElementById('locationSearch').value = r.display_name.split(',')[0];
+  if (!document.getElementById('stopName').value) {
+    document.getElementById('stopName').value = r.display_name.split(',')[0];
+  }
+  if (map) map.setView([selectedLat, selectedLng], 14);
+  showToast('📍 Locatie ingesteld!');
+}
 let isRecording = false, recognition = null, currentTranscription = '';
 
 // ==========================================
@@ -693,10 +1136,24 @@ function initMap() {
   });
 }
 
-function createMarkerIcon(number) {
+function createMarkerIcon(number, photoUrl) {
+  if (photoUrl) {
+    return L.divIcon({
+      className: '',
+      html: `
+        <div style="display:flex;flex-direction:column;align-items:center;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.35))">
+          <div style="width:44px;height:44px;border-radius:10px;background:white;padding:3px;box-shadow:0 1px 4px rgba(0,0,0,0.2)">
+            <img src="${photoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:7px" loading="lazy">
+          </div>
+          <div style="width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-top:9px solid white;margin-top:-2px"></div>
+          <div style="background:#0d9488;color:white;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;margin-top:-6px;border:2px solid white">${number}</div>
+        </div>`,
+      iconSize: [44, 70], iconAnchor: [22, 70]
+    });
+  }
   return L.divIcon({
     className: '',
-    html: `<div style="background:#c8602a;color:white;width:32px;height:32px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;border:2px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3)"><span style="transform:rotate(45deg);font-size:12px;font-weight:600">${number}</span></div>`,
+    html: `<div style="background:#0d9488;color:white;width:32px;height:32px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;border:2px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3)"><span style="transform:rotate(45deg);font-size:12px;font-weight:600">${number}</span></div>`,
     iconSize: [32, 32], iconAnchor: [16, 32]
   });
 }
@@ -725,7 +1182,7 @@ async function loadStops() {
 function renderStops() {
   const list = document.getElementById('stopsList');
   map.eachLayer(l => { if (l instanceof L.Marker) map.removeLayer(l); });
-  map.eachLayer(l => { if (l instanceof L.Polyline) map.removeLayer(l); });
+  map.eachLayer(l => { if (l instanceof L.Polyline && l !== liveTrailLine) map.removeLayer(l); });
 
   if (stops.length === 0) {
     list.innerHTML = `<div class="empty-state"><div class="empty-icon">🗺️</div><div class="empty-text">Nog geen stops.<br>Klik op de kaart of gebruik de knop.</div></div>`;
@@ -735,35 +1192,70 @@ function renderStops() {
   list.innerHTML = '';
   const coords = [];
 
+  // Groepeer op dag (YYYY-MM-DD)
+  const groups = {};
+  const order = [];
   stops.forEach((stop, i) => {
-    L.marker([stop.lat, stop.lng], { icon: createMarkerIcon(i+1) })
-      .addTo(map)
-      .on('click', () => showDetail(stop));
-    coords.push([stop.lat, stop.lng]);
+    const dateKey = new Date(stop.created_at).toISOString().slice(0,10);
+    if (!groups[dateKey]) { groups[dateKey] = []; order.push(dateKey); }
+    groups[dateKey].push({ stop, index: i });
+  });
 
-    const photos = stop.photos || [];
-    let photoGridHTML = '';
-    if (photos.length > 0) {
-      const cls = photos.length === 1 ? 'single' : photos.length === 2 ? 'duo' : '';
-      photoGridHTML = `<div class="stop-photos ${cls}">${photos.slice(0,3).map(p=>`<img src="${p}" loading="lazy">`).join('')}</div>`;
-    }
+  order.forEach((dateKey, dayIdx) => {
+    const items = groups[dateKey];
+    const dateLabel = new Date(items[0].stop.created_at).toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long'});
+    const firstWithPhoto = items.find(it => (it.stop.photos||[]).length > 0);
+    const thumb = firstWithPhoto ? firstWithPhoto.stop.photos[0] : null;
+    const hasStory = !!dayStories[dateKey];
+    const snippetSource = hasStory ? dayStories[dateKey] : (items[0].stop.ai_analysis || items[0].stop.note || '');
+    const snippet = snippetSource ? (snippetSource.length > 140 ? snippetSource.slice(0,140) + '…' : snippetSource) : 'Nog geen verhaal — tik om te genereren.';
 
-    const card = document.createElement('div');
-    card.className = 'stop-card';
-    card.innerHTML = `
-      ${photoGridHTML}
-      <div class="stop-info">
-        <div class="stop-name"><div class="stop-number">${i+1}</div>${stop.name}</div>
-        ${stop.note ? `<div class="stop-desc">${stop.note}</div>` : ''}
-        ${stop.ai_analysis ? `<div class="stop-ai-badge">✨ AI info</div>` : ''}
-        <div class="stop-date">${new Date(stop.created_at).toLocaleDateString('nl-NL',{day:'numeric',month:'long',year:'numeric'})}</div>
+    const summaryCard = document.createElement('div');
+    summaryCard.className = 'day-summary-card';
+    summaryCard.innerHTML = `
+      <div class="day-summary-top">
+        <div>
+          <div class="day-summary-title">DAG ${dayIdx+1} — ${dateLabel}</div>
+          <div class="day-summary-sub">${items.length > 1 ? items[0].stop.name + ` (+${items.length-1} meer)` : items[0].stop.name}</div>
+        </div>
+        <div class="day-summary-badge">📷</div>
+      </div>
+      <div class="day-summary-body">
+        ${thumb ? `<img class="day-summary-thumb" src="${thumb}" loading="lazy">` : ''}
+        <div>
+          <div class="day-summary-snippet">${snippet}</div>
+          <span class="day-summary-readmore">${hasStory ? '[Lees meer]' : '[Bouw dagverhaal]'}</span>
+        </div>
       </div>`;
-    card.onclick = () => showDetail(stop);
-    list.appendChild(card);
+    summaryCard.onclick = () => openDayStory(dateKey);
+    list.appendChild(summaryCard);
+
+    const miniList = document.createElement('div');
+    miniList.className = 'stop-mini-list';
+
+    items.forEach(({ stop, index }) => {
+      const photos = stop.photos || [];
+      L.marker([stop.lat, stop.lng], { icon: createMarkerIcon(index+1, photos[0]) })
+        .addTo(map)
+        .on('click', () => showDetail(stop));
+      coords.push([stop.lat, stop.lng]);
+
+      const row = document.createElement('div');
+      row.className = 'stop-mini-row';
+      row.innerHTML = `
+        ${photos[0] ? `<img class="stop-mini-thumb" src="${photos[0]}" loading="lazy">` : `<div class="stop-mini-dot">${index+1}</div>`}
+        <div class="stop-mini-info">
+          <div class="stop-mini-name">${stop.name}</div>
+          <div class="stop-mini-time">${new Date(stop.created_at).toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'})}</div>
+        </div>`;
+      row.onclick = () => showDetail(stop);
+      miniList.appendChild(row);
+    });
+    list.appendChild(miniList);
   });
 
   if (coords.length > 1) {
-    L.polyline(coords, { color: '#c8602a', weight: 2, opacity: 0.6, dashArray: '8,6' }).addTo(map);
+    L.polyline(coords, { color: '#0d9488', weight: 2, opacity: 0.6, dashArray: '8,6' }).addTo(map);
     map.fitBounds(coords, { padding: [40,40] });
   } else if (coords.length === 1) {
     map.setView(coords[0], 13);
@@ -776,25 +1268,65 @@ function renderStops() {
 // MODAL
 // ==========================================
 function openAddModal() {
+  editingStop = null;
+  document.querySelector('#addModal .modal-title').textContent = 'Nieuwe stop toevoegen';
   document.getElementById('addModal').style.display = 'flex';
   document.getElementById('stopName').value = '';
   document.getElementById('stopNote').value = '';
+  document.getElementById('locationSearch').value = '';
+  document.getElementById('locationResults').innerHTML = '';
+  document.getElementById('existingPhotosNote').style.display = 'none';
   document.getElementById('aiAnalysisContainer').style.display = 'none';
   document.getElementById('aiAnalysisText').textContent = '';
   document.getElementById('voiceSection').style.display = 'none';
   document.getElementById('transcriptionText').textContent = '';
   document.getElementById('photoPreviewGrid').innerHTML = '';
   photoNames = []; photoDataURLs = []; currentTranscription = '';
+  const dtInput = document.getElementById('stopDateTime');
+  dtInput.value = nowLocalInputValue();
+  dtInput.dataset.touched = '0';
+  document.getElementById('dateSourceBadge').textContent = '';
   if (selectedLat) {
     document.getElementById('coordDisplay').textContent = `${selectedLat.toFixed(5)}, ${selectedLng.toFixed(5)}`;
   } else {
-    document.getElementById('coordDisplay').textContent = 'Klik op de kaart of gebruik GPS';
+    document.getElementById('coordDisplay').textContent = 'Zoek hierboven, klik op de kaart of gebruik GPS';
+  }
+}
+
+function openEditModal(id) {
+  const stop = stops.find(s => s.id === id);
+  if (!stop) return;
+  document.getElementById('detailOverlay').style.display = 'none';
+  openAddModal();
+  editingStop = stop;
+  document.querySelector('#addModal .modal-title').textContent = 'Stop bewerken';
+  document.getElementById('stopName').value = stop.name || '';
+  document.getElementById('stopNote').value = stop.note || '';
+  selectedLat = stop.lat;
+  selectedLng = stop.lng;
+  document.getElementById('coordDisplay').textContent = `${selectedLat.toFixed(5)}, ${selectedLng.toFixed(5)}`;
+  const dtInput = document.getElementById('stopDateTime');
+  dtInput.value = isoToLocalInputValue(stop.created_at);
+  dtInput.dataset.touched = '1';
+  document.getElementById('dateSourceBadge').textContent = '';
+  if (stop.ai_analysis) {
+    document.getElementById('aiAnalysisContainer').style.display = 'block';
+    document.getElementById('aiSpinner').style.display = 'none';
+    document.getElementById('aiStatusText').textContent = '✨ AI analyse';
+    document.getElementById('aiAnalysisText').textContent = stop.ai_analysis;
+  }
+  const existing = (stop.photos || []).length;
+  if (existing > 0) {
+    const note = document.getElementById('existingPhotosNote');
+    note.style.display = 'block';
+    note.textContent = `📸 ${existing} bestaande foto('s) blijven bewaard — nieuwe foto's worden toegevoegd`;
   }
 }
 
 function closeModal() {
   document.getElementById('addModal').style.display = 'none';
   selectedLat = null; selectedLng = null;
+  editingStop = null;
 }
 
 function useMyLocation() {
@@ -804,6 +1336,14 @@ function useMyLocation() {
     selectedLng = pos.coords.longitude;
     document.getElementById('coordDisplay').textContent = `${selectedLat.toFixed(5)}, ${selectedLng.toFixed(5)}`;
     showToast('📍 Locatie gevonden!');
+  }, () => showToast('Locatie ophalen mislukt'));
+}
+
+function centerOnMyLocation() {
+  if (!navigator.geolocation) return showToast('Geolocation niet beschikbaar');
+  showToast('📍 Locatie zoeken...');
+  navigator.geolocation.getCurrentPosition(pos => {
+    map.setView([pos.coords.latitude, pos.coords.longitude], 14);
   }, () => showToast('Locatie ophalen mislukt'));
 }
 
@@ -823,9 +1363,78 @@ function handleDrop(e) {
 
 function handlePhotos(e) { processPhotoFiles(Array.from(e.target.files)); }
 
+function nowLocalInputValue() {
+  const d = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function isoToLocalInputValue(iso) {
+  const d = new Date(iso);
+  const pad = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function extractExifMeta(file) {
+  return new Promise(resolve => {
+    if (!window.EXIF) return resolve(null);
+    try {
+      EXIF.getData(file, function() {
+        const lat = EXIF.getTag(this, 'GPSLatitude');
+        const latRef = EXIF.getTag(this, 'GPSLatitudeRef');
+        const lng = EXIF.getTag(this, 'GPSLongitude');
+        const lngRef = EXIF.getTag(this, 'GPSLongitudeRef');
+        const dateStr = EXIF.getTag(this, 'DateTimeOriginal') || EXIF.getTag(this, 'DateTime');
+
+        let gps = null;
+        if (lat && lng) {
+          const toDecimal = (dms, ref) => { let d = dms[0] + dms[1]/60 + dms[2]/3600; if (ref === 'S' || ref === 'W') d = -d; return d; };
+          gps = { lat: toDecimal(lat, latRef), lng: toDecimal(lng, lngRef) };
+        }
+
+        let dateTaken = null;
+        if (dateStr) {
+          const m = String(dateStr).match(/^(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})/);
+          if (m) dateTaken = `${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}`;
+        }
+
+        resolve((gps || dateTaken) ? { gps, dateTaken } : null);
+      });
+    } catch(e) { resolve(null); }
+  });
+}
+
 async function processPhotoFiles(files) {
   if (files.length === 0) return;
   showToast('📸 Foto\'s verwerken...');
+
+  // Locatie én opnamedatum uit de foto zelf halen (EXIF)
+  let dateSetFromExif = false;
+  const dateTouched = document.getElementById('stopDateTime').dataset.touched === '1';
+
+  for (const file of files) {
+    const meta = await extractExifMeta(file);
+    if (!meta) continue;
+
+    if (meta.gps && !selectedLat) {
+      selectedLat = meta.gps.lat;
+      selectedLng = meta.gps.lng;
+      document.getElementById('coordDisplay').textContent = `📍 Uit foto: ${meta.gps.lat.toFixed(5)}, ${meta.gps.lng.toFixed(5)}`;
+      showToast('📍 Locatie uit foto gevonden!');
+      if (map) map.setView([meta.gps.lat, meta.gps.lng], 14);
+      reverseGeocode(meta.gps.lat, meta.gps.lng);
+    }
+
+    if (meta.dateTaken && !dateTouched && !dateSetFromExif) {
+      document.getElementById('stopDateTime').value = meta.dateTaken;
+      document.getElementById('dateSourceBadge').textContent = '📷 uit foto';
+      dateSetFromExif = true;
+      showToast('🕒 Datum uit foto overgenomen');
+    }
+
+    if (meta.gps || meta.dateTaken) break;
+  }
+
   for (const file of files) {
     // Verkleinen: max 1600px, JPEG 0.82 — blijft onder Netlify's 6MB limiet
     const dataURL = await compressImage(file, 1600, 0.82);
@@ -882,36 +1491,74 @@ function removePhoto(index) {
 // ==========================================
 // AI ANALYSIS — via Netlify function
 // ==========================================
+async function getImagesForAnalysis() {
+  if (photoDataURLs.length > 0) {
+    return photoDataURLs.slice(0, 2).map(dataURL => {
+      const [header, data] = dataURL.split(',');
+      const mimeMatch = header.match(/data:([^;]+)/);
+      return { data, mediaType: mimeMatch ? mimeMatch[1] : 'image/jpeg' };
+    });
+  }
+  // Geen nieuwe foto's deze sessie — gebruik bestaande foto's (bij bewerken)
+  if (editingStop && (editingStop.photos || []).length > 0) {
+    const urls = editingStop.photos.slice(0, 2);
+    const results = [];
+    for (const url of urls) {
+      try {
+        const res = await fetch(url);
+        const blob = await res.blob();
+        const dataURL = await new Promise(resolve => {
+          const r = new FileReader();
+          r.onload = e => resolve(e.target.result);
+          r.readAsDataURL(blob);
+        });
+        const [header, data] = dataURL.split(',');
+        const mimeMatch = header.match(/data:([^;]+)/);
+        results.push({ data, mediaType: mimeMatch ? mimeMatch[1] : 'image/jpeg' });
+      } catch(e) {}
+    }
+    return results;
+  }
+  return [];
+}
+
 async function analyzePhotos() {
   const container = document.getElementById('aiAnalysisContainer');
   const spinner = document.getElementById('aiSpinner');
   const statusText = document.getElementById('aiStatusText');
   const analysisText = document.getElementById('aiAnalysisText');
+  const regenBtn = document.getElementById('regenBtn');
+
+  const images = await getImagesForAnalysis();
+  if (images.length === 0) {
+    showToast('Geen foto\'s om te analyseren');
+    return;
+  }
 
   container.style.display = 'block';
   spinner.style.display = 'block';
+  regenBtn.style.display = 'none';
   statusText.textContent = 'Foto analyseren met AI...';
   analysisText.textContent = '';
 
-  const images = photoDataURLs.slice(0, 2).map(dataURL => {
-    const [header, data] = dataURL.split(',');
-    const mimeMatch = header.match(/data:([^;]+)/);
-    return { data, mediaType: mimeMatch ? mimeMatch[1] : 'image/jpeg' };
-  });
+  const placeName = document.getElementById('stopName').value.trim() || document.getElementById('locationSearch').value.trim();
+  const noteText = document.getElementById('stopNote').value.trim();
 
   try {
     const res = await fetch('/.netlify/functions/analyze-photo', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ images, lat: selectedLat, lng: selectedLng })
+      body: JSON.stringify({ images, lat: selectedLat, lng: selectedLng, placeName, noteText })
     });
     const data = await res.json();
     spinner.style.display = 'none';
+    regenBtn.style.display = 'inline-flex';
     statusText.textContent = '✨ AI analyse';
     analysisText.textContent = data.analysis || 'Analyse niet beschikbaar.';
     if (!document.getElementById('stopName').value && selectedLat) reverseGeocode(selectedLat, selectedLng);
   } catch(e) {
     spinner.style.display = 'none';
+    regenBtn.style.display = 'inline-flex';
     statusText.textContent = '⚠️ Analyse mislukt';
     analysisText.textContent = 'Kon de foto niet analyseren.';
   }
@@ -966,7 +1613,11 @@ function stopRecording() {
   if (currentTranscription.trim()) {
     const el = document.getElementById('stopNote');
     el.value = el.value ? el.value + '\n\n' + currentTranscription.trim() : currentTranscription.trim();
-    showToast('🎤 Tekst toegevoegd!');
+    if (document.getElementById('aiAnalysisContainer').style.display !== 'none') {
+      showToast('🎤 Tekst toegevoegd! Klik op "Regenereer" om dit in het AI-verhaal te verwerken');
+    } else {
+      showToast('🎤 Tekst toegevoegd!');
+    }
   }
 }
 
@@ -1013,19 +1664,36 @@ async function saveStop() {
   }
 
   try {
+    const isEdit = !!editingStop;
+    const allPhotos = isEdit ? [...(editingStop.photos || []), ...photoURLs] : photoURLs;
+    const payload = {
+      name, lat: selectedLat, lng: selectedLng, note,
+      ai_analysis: aiAnalysis || (isEdit ? editingStop.ai_analysis : ''),
+      photos: allPhotos
+    };
+    const dtValue = document.getElementById('stopDateTime').value;
+    payload.created_at = dtValue ? new Date(dtValue).toISOString() : new Date().toISOString();
+    if (isEdit) payload.id = editingStop.id;
+
     const res = await fetch('/.netlify/functions/stops', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'save',
-        payload: { name, lat: selectedLat, lng: selectedLng, note, ai_analysis: aiAnalysis, photos: photoURLs, created_at: new Date().toISOString() }
-      })
+      body: JSON.stringify({ action: isEdit ? 'update' : 'save', payload })
     });
     const data = await res.json();
-    if (data.stop) stops.push(data.stop);
-    renderStops();
-    closeModal();
-    showToast('✅ Stop opgeslagen!');
+    if (data.stop) {
+      if (isEdit) {
+        const idx = stops.findIndex(s => s.id === data.stop.id);
+        if (idx >= 0) stops[idx] = data.stop;
+      } else {
+        stops.push(data.stop);
+      }
+      renderStops();
+      closeModal();
+      showToast(isEdit ? '✅ Stop bijgewerkt!' : '✅ Stop opgeslagen!');
+    } else {
+      showToast('⚠️ Opslaan mislukt: ' + (data.error || 'onbekende fout'));
+    }
   } catch(e) {
     showToast('⚠️ Opslaan mislukt');
   }
@@ -1047,7 +1715,10 @@ function showDetail(stop) {
       <div class="detail-date">📍 ${stop.lat.toFixed(4)}, ${stop.lng.toFixed(4)} · ${new Date(stop.created_at).toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</div>
       ${stop.note ? `<div class="detail-note">${stop.note}</div>` : ''}
       ${stop.ai_analysis ? `<div class="detail-ai"><div class="detail-ai-title">✨ AI Analyse</div><div class="detail-ai-text">${stop.ai_analysis}</div></div>` : ''}
-      <button class="btn-cancel" style="color:#dc2626;border-color:#fca5a5" onclick="deleteStop('${stop.id}')">🗑 Stop verwijderen</button>
+      <div style="display:flex;gap:10px">
+        <button class="btn-save" onclick="openEditModal('${stop.id}')">✏️ Bewerken</button>
+        <button class="btn-cancel" style="color:#dc2626;border-color:#fca5a5" onclick="deleteStop('${stop.id}')">🗑 Verwijderen</button>
+      </div>
     </div>`;
   document.getElementById('detailOverlay').style.display = 'flex';
 }
@@ -1078,6 +1749,408 @@ function closeDetail(e) {
   if (e.target === document.getElementById('detailOverlay')) document.getElementById('detailOverlay').style.display = 'none';
 }
 
+// ==========================================
+// DAGVERHAAL
+// ==========================================
+async function loadDayStories() {
+  try {
+    const res = await fetch('/.netlify/functions/day-story', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'load' })
+    });
+    const data = await res.json();
+    dayStories = {};
+    (data.stories || []).forEach(s => { dayStories[s.date] = s.story; });
+    if (stops.length > 0) renderStops();
+  } catch(e) {}
+}
+
+function openDayStory(dateKey) {
+  const items = stops.filter(s => new Date(s.created_at).toISOString().slice(0,10) === dateKey);
+  currentDayStoryDate = dateKey;
+  currentDayStoryItems = items;
+
+  const dateLabel = new Date(items[0].created_at).toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  document.getElementById('dayStoryTitle').textContent = `📖 ${dateLabel}`;
+  document.getElementById('dayStoryModal').style.display = 'flex';
+
+  if (dayStories[dateKey]) {
+    document.getElementById('dayStorySpinner').style.display = 'none';
+    document.getElementById('dayStoryStatus').textContent = '✨ Dagverhaal';
+    document.getElementById('dayStoryText').textContent = dayStories[dateKey];
+  } else {
+    generateDayStory();
+  }
+}
+
+async function generateDayStory() {
+  document.getElementById('dayStorySpinner').style.display = 'block';
+  document.getElementById('dayStoryStatus').textContent = 'Verhaal schrijven...';
+  document.getElementById('dayStoryText').textContent = '';
+
+  const items = currentDayStoryItems.map(s => ({ name: s.name, note: s.note, ai_analysis: s.ai_analysis }));
+
+  try {
+    const res = await fetch('/.netlify/functions/day-story', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'generate', date: currentDayStoryDate, items, tripTitle: 'Pathale' })
+    });
+    const data = await res.json();
+    document.getElementById('dayStorySpinner').style.display = 'none';
+
+    if (data.story) {
+      document.getElementById('dayStoryStatus').textContent = '✨ Dagverhaal';
+      document.getElementById('dayStoryText').textContent = data.story;
+      dayStories[currentDayStoryDate] = data.story;
+      renderStops();
+      // Opslaan
+      fetch('/.netlify/functions/day-story', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'save', date: currentDayStoryDate, story: data.story })
+      }).catch(()=>{});
+    } else {
+      document.getElementById('dayStoryStatus').textContent = '⚠️ Mislukt';
+      document.getElementById('dayStoryText').textContent = data.error || 'Kon geen dagverhaal genereren.';
+    }
+  } catch(e) {
+    document.getElementById('dayStorySpinner').style.display = 'none';
+    document.getElementById('dayStoryStatus').textContent = '⚠️ Mislukt';
+    document.getElementById('dayStoryText').textContent = 'Kon geen verbinding maken.';
+  }
+}
+
+function regenerateDayStory() {
+  generateDayStory();
+}
+
+// ==========================================
+// LIVE VOLGEN (foreground GPS tracking)
+// ==========================================
+async function loadTrackpoints() {
+  try {
+    const res = await fetch('/.netlify/functions/stops', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'load-trackpoints' })
+    });
+    const data = await res.json();
+    const points = (data.trackpoints || []).map(p => [p.lat, p.lng]);
+    if (points.length > 1) {
+      liveTrailLine = L.polyline(points, { color: '#2563eb', weight: 3, opacity: 0.7 }).addTo(map);
+    }
+  } catch(e) {}
+}
+
+function toggleLiveTracking() {
+  if (liveTracking) stopLiveTracking();
+  else startLiveTracking();
+}
+
+function startLiveTracking() {
+  if (!navigator.geolocation) return showToast('GPS niet beschikbaar op dit apparaat');
+
+  liveTracking = true;
+  const btn = document.getElementById('liveTrackBtn');
+  btn.classList.add('active');
+  btn.innerHTML = '<span class="dot"></span> Volgen actief';
+  showToast('🔴 Live volgen gestart — houd de app open voor betrouwbaar loggen');
+
+  liveWatchId = navigator.geolocation.watchPosition(pos => {
+    const { latitude, longitude } = pos.coords;
+    liveTrail.push([latitude, longitude]);
+
+    if (!liveTrailLine) {
+      liveTrailLine = L.polyline(liveTrail, { color: '#2563eb', weight: 3, opacity: 0.7 }).addTo(map);
+    } else {
+      liveTrailLine.addLatLng([latitude, longitude]);
+    }
+
+    // Elke ~80 meter een punt bewaren in de database
+    const shouldSave = !lastSavedPoint || haversine(lastSavedPoint[0], lastSavedPoint[1], latitude, longitude) > 80;
+    if (shouldSave) {
+      lastSavedPoint = [latitude, longitude];
+      fetch('/.netlify/functions/stops', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'save-trackpoint', payload: { lat: latitude, lng: longitude, created_at: new Date().toISOString() } })
+      }).catch(()=>{});
+    }
+  }, err => {
+    showToast('⚠️ GPS-signaal verloren');
+  }, { enableHighAccuracy: true, maximumAge: 10000 });
+}
+
+function stopLiveTracking() {
+  liveTracking = false;
+  if (liveWatchId !== null) navigator.geolocation.clearWatch(liveWatchId);
+  liveWatchId = null;
+  const btn = document.getElementById('liveTrackBtn');
+  btn.classList.remove('active');
+  btn.innerHTML = '<span class="dot"></span> Live volgen';
+  showToast('⏹ Live volgen gestopt');
+}
+
+function haversine(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const dLat = (lat2-lat1) * Math.PI/180;
+  const dLng = (lng2-lng1) * Math.PI/180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// ==========================================
+// FOTOBOEK EXPORT (PDF)
+// ==========================================
+async function urlToDataURL(url) {
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    return await new Promise(resolve => {
+      const r = new FileReader();
+      r.onload = e => resolve(e.target.result);
+      r.readAsDataURL(blob);
+    });
+  } catch(e) { return null; }
+}
+
+async function exportPhotobook() {
+  if (stops.length === 0) return showToast('Nog geen stops om te exporteren');
+  showToast('📖 Fotoboek maken, even geduld...');
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const pageW = 210, pageH = 297, margin = 20;
+
+  // Voorpagina
+  doc.setFillColor(26, 22, 18);
+  doc.rect(0, 0, pageW, pageH, 'F');
+  doc.setTextColor(245, 240, 232);
+  doc.setFontSize(36);
+  doc.text('Pathale', pageW/2, 130, { align: 'center' });
+  doc.setFontSize(14);
+  const first = new Date(stops[0].created_at).toLocaleDateString('nl-NL',{day:'numeric',month:'long',year:'numeric'});
+  const last = new Date(stops[stops.length-1].created_at).toLocaleDateString('nl-NL',{day:'numeric',month:'long',year:'numeric'});
+  doc.text(`${first} — ${last}`, pageW/2, 145, { align: 'center' });
+
+  for (let i = 0; i < stops.length; i++) {
+    const stop = stops[i];
+    doc.addPage();
+    doc.setTextColor(26, 22, 18);
+    let y = margin;
+
+    doc.setFontSize(18);
+    doc.text(`${i+1}. ${stop.name}`, margin, y);
+    y += 8;
+
+    doc.setFontSize(10);
+    doc.setTextColor(138, 126, 114);
+    doc.text(new Date(stop.created_at).toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'}), margin, y);
+    y += 10;
+
+    // Eerste foto
+    const photos = stop.photos || [];
+    if (photos.length > 0) {
+      const dataURL = await urlToDataURL(photos[0]);
+      if (dataURL) {
+        try {
+          const imgW = pageW - margin*2;
+          const imgH = 90;
+          doc.addImage(dataURL, 'JPEG', margin, y, imgW, imgH, undefined, 'FAST');
+          y += imgH + 8;
+        } catch(e) {}
+      }
+    }
+
+    doc.setTextColor(26, 22, 18);
+    doc.setFontSize(11);
+    if (stop.note) {
+      const noteLines = doc.splitTextToSize(stop.note, pageW - margin*2);
+      doc.text(noteLines, margin, y);
+      y += noteLines.length * 5 + 6;
+    }
+    if (stop.ai_analysis) {
+      doc.setTextColor(37, 99, 235);
+      doc.setFontSize(9);
+      doc.text('✨ AI', margin, y);
+      y += 5;
+      doc.setTextColor(60, 55, 50);
+      doc.setFontSize(10);
+      const aiLines = doc.splitTextToSize(stop.ai_analysis, pageW - margin*2);
+      doc.text(aiLines, margin, y);
+    }
+  }
+
+  doc.save('pathale-fotoboek.pdf');
+  showToast('✅ Fotoboek gedownload!');
+}
+
+function tabComingSoon() {
+  showToast('🚧 Nog niet beschikbaar — Pathale ondersteunt nu één reis tegelijk');
+}
+
+async function autoBuildAllTales() {
+  if (stops.length === 0) return showToast('Nog geen stops om een verhaal van te maken');
+
+  const groups = {};
+  stops.forEach(s => {
+    const dateKey = new Date(s.created_at).toISOString().slice(0,10);
+    if (!groups[dateKey]) groups[dateKey] = [];
+    groups[dateKey].push(s);
+  });
+  const missingDates = Object.keys(groups).filter(d => !dayStories[d]);
+
+  if (missingDates.length === 0) {
+    showToast('✨ Alle dagverhalen zijn al gemaakt — open er één om te bekijken');
+    return;
+  }
+
+  const btn = document.querySelector('.btn-autobuild');
+  btn.disabled = true;
+
+  for (let i = 0; i < missingDates.length; i++) {
+    const dateKey = missingDates[i];
+    btn.textContent = `✨ Bezig (${i+1}/${missingDates.length})...`;
+    const items = groups[dateKey].map(s => ({ name: s.name, note: s.note, ai_analysis: s.ai_analysis }));
+    try {
+      const res = await fetch('/.netlify/functions/day-story', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'generate', date: dateKey, items, tripTitle: 'Pathale' })
+      });
+      const data = await res.json();
+      if (data.story) {
+        dayStories[dateKey] = data.story;
+        fetch('/.netlify/functions/day-story', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'save', date: dateKey, story: data.story })
+        }).catch(()=>{});
+      }
+    } catch(e) {}
+  }
+
+  btn.disabled = false;
+  btn.textContent = '✨ Bouw mijn verhaal';
+  renderStops();
+  showToast('✅ Dagverhalen klaar!');
+}
+
+// ==========================================
+// REIS-STATUS & AFRONDEN
+// ==========================================
+async function loadTripMeta() {
+  try {
+    const res = await fetch('/.netlify/functions/stops', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'load-trip-meta' })
+    });
+    const data = await res.json();
+    if (data.tripMeta) tripMeta = data.tripMeta;
+  } catch(e) {}
+  renderTripMeta();
+}
+
+function renderTripMeta() {
+  document.getElementById('tripTitle').innerHTML = `${tripMeta.title} <span style="font-size:0.8rem;opacity:0.5">✏️</span>`;
+  const badge = document.getElementById('tripStatusBadge');
+  if (tripMeta.status === 'voltooid') {
+    const d = tripMeta.finished_at ? new Date(tripMeta.finished_at).toLocaleDateString('nl-NL',{day:'numeric',month:'long',year:'numeric'}) : '';
+    badge.style.display = 'block';
+    badge.innerHTML = `<span class="trip-status-badge">✅ Voltooid${d ? ' op ' + d : ''} <a href="#" onclick="reopenTrip();return false;" style="color:inherit;text-decoration:underline;margin-left:4px">heropenen</a></span>`;
+    document.getElementById('finishTripBtn').style.display = 'none';
+  } else {
+    badge.style.display = 'none';
+    document.getElementById('finishTripBtn').style.display = 'block';
+  }
+}
+
+async function saveTripMeta(fields) {
+  try {
+    const res = await fetch('/.netlify/functions/stops', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'save-trip-meta', payload: { ...tripMeta, ...fields } })
+    });
+    const data = await res.json();
+    if (data.tripMeta) tripMeta = data.tripMeta;
+    renderTripMeta();
+  } catch(e) {
+    showToast('⚠️ Opslaan mislukt');
+  }
+}
+
+function editTripTitle() {
+  const newTitle = prompt('Naam van je reis:', tripMeta.title);
+  if (newTitle && newTitle.trim()) saveTripMeta({ title: newTitle.trim() });
+}
+
+function finishTrip() {
+  if (stops.length === 0) return showToast('Voeg eerst een stop toe');
+  if (!confirm('Reis afronden? Je kunt daarna nog steeds stops toevoegen en de reis heropenen — dit zet alleen een "voltooid"-markering met datum.')) return;
+  saveTripMeta({ status: 'voltooid', finished_at: new Date().toISOString() });
+  showToast('🏁 Reis gemarkeerd als voltooid!');
+}
+
+function reopenTrip() {
+  saveTripMeta({ status: 'actief', finished_at: null });
+  showToast('↩️ Reis heropend');
+}
+
+// ==========================================
+// EXPORT REISBOEK-DATA
+// ==========================================
+function exportTripData() {
+  if (stops.length === 0) return showToast('Nog geen stops om te exporteren');
+
+  const groups = {};
+  stops.forEach(s => {
+    const dateKey = new Date(s.created_at).toISOString().slice(0,10);
+    if (!groups[dateKey]) groups[dateKey] = [];
+    groups[dateKey].push(s);
+  });
+
+  const days = Object.keys(groups).sort().map(dateKey => ({
+    datum: dateKey,
+    dagverhaal: dayStories[dateKey] || null,
+    stops: groups[dateKey].map(s => ({
+      naam: s.name,
+      tijd: s.created_at,
+      notitie: s.note || null,
+      ai_beschrijving: s.ai_analysis || null,
+      fotos: s.photos || [],
+      lat: s.lat,
+      lng: s.lng
+    }))
+  }));
+
+  const exportData = {
+    reis: tripMeta.title,
+    status: tripMeta.status,
+    periode: {
+      van: stops[0].created_at,
+      tot: stops[stops.length-1].created_at
+    },
+    aantal_stops: stops.length,
+    dagen: days
+  };
+
+  const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${tripMeta.title.toLowerCase().replace(/[^a-z0-9]+/g,'-')}-reisdata.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+
+  showToast('⬇️ Reisdata gedownload — upload dit bestand in Claude voor je reisboekje');
+}
+
 function shareTrip() {
   navigator.clipboard?.writeText(window.location.href).then(() => showToast('🔗 Link gekopieerd!'));
 }
@@ -1093,8 +2166,62 @@ function showToast(msg) {
 // ==========================================
 // INIT
 // ==========================================
-initMap();
-loadStops();
+// ==========================================
+// ACCESS GATE
+// ==========================================
+async function checkAccessCode() {
+  const code = document.getElementById('gateCode').value.trim();
+  const errEl = document.getElementById('gateError');
+  errEl.textContent = '';
+  if (!code) { errEl.textContent = 'Voer een code in'; return; }
+
+  try {
+    const res = await fetch('/.netlify/functions/verify-code', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code })
+    });
+    const data = await res.json();
+    if (data.valid) {
+      localStorage.setItem('pathale_access', 'granted');
+      showApp();
+    } else {
+      errEl.textContent = 'Onjuiste code, probeer opnieuw';
+    }
+  } catch(e) {
+    errEl.textContent = 'Kon niet verbinden, probeer opnieuw';
+  }
+}
+
+function showApp() {
+  document.getElementById('gateScreen').style.display = 'none';
+  document.getElementById('appRoot').style.display = 'flex';
+  initMap();
+  loadStops();
+  loadDayStories();
+  loadTrackpoints();
+  loadTripMeta();
+}
+
+async function initGate() {
+  if (localStorage.getItem('pathale_access') === 'granted') {
+    showApp();
+    return;
+  }
+  // Probeer zonder code — als er geen ACCESS_CODE is ingesteld op Netlify, gaat de app meteen open
+  try {
+    const res = await fetch('/.netlify/functions/verify-code', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: '' })
+    });
+    const data = await res.json();
+    if (data.noCodeSet) { showApp(); return; }
+  } catch(e) {}
+  document.getElementById('gateScreen').style.display = 'flex';
+}
+
+initGate();
 </script>
 </body>
 </html>

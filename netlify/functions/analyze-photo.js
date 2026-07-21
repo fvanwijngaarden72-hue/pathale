@@ -3,9 +3,9 @@ exports.handler = async (event) => {
     return { statusCode: 405, body: 'Method Not Allowed' };
   }
 
-  let images, lat, lng;
+  let images, lat, lng, placeName, noteText;
   try {
-    ({ images, lat, lng } = JSON.parse(event.body));
+    ({ images, lat, lng, placeName, noteText } = JSON.parse(event.body));
   } catch (e) {
     return { statusCode: 400, body: JSON.stringify({ error: 'Ongeldige request body' }) };
   }
@@ -19,9 +19,11 @@ exports.handler = async (event) => {
     source: { type: 'base64', media_type: mediaType, data }
   }));
 
-  const locationContext = lat
-    ? `De foto is genomen op coördinaten ${parseFloat(lat).toFixed(4)}, ${parseFloat(lng).toFixed(4)}.`
-    : '';
+  const locationContext = [
+    placeName ? `De gebruiker geeft aan dat deze foto is gemaakt bij/in: "${placeName}". Gebruik deze informatie als uitgangspunt voor je analyse.` : '',
+    lat ? `Coördinaten: ${parseFloat(lat).toFixed(4)}, ${parseFloat(lng).toFixed(4)}.` : '',
+    noteText ? `De gebruiker heeft dit zelf ingesproken of genoteerd over dit moment: "${noteText}". Verwerk deze persoonlijke herinnering natuurlijk in je verhaal — dit is belangrijker dan aannames die je zelf zou maken.` : ''
+  ].filter(Boolean).join(' ');
 
   let response;
   try {
@@ -41,12 +43,13 @@ exports.handler = async (event) => {
           ...imageContents,
           {
             type: 'text',
-            text: `${locationContext} Analyseer deze reisfoto('s) en geef:
-1. Wat is te zien (omgeving, sfeer, type plek)?
-2. Als er een herkenbaar gebouw, monument of landmark is: naam, locatie en interessante weetjes (2-3 zinnen).
-3. Algemene context over de omgeving of regio.
+            text: `${locationContext} Analyseer deze reisfoto('s) en schrijf een kort reisdagboek-fragment dat:
+1. Beschrijft wat er te zien is (omgeving, sfeer, type plek)
+2. Als er een herkenbaar gebouw, monument of landmark is: naam, locatie en interessante weetjes (2-3 zinnen)
+3. Algemene context over de omgeving of regio geeft
+4. Als de gebruiker een persoonlijke notitie heeft gegeven: verwerk die natuurlijk in het verhaal, alsof het één samenhangend stukje reisdagboek is — niet als los toegevoegd citaat
 
-Schrijf in het Nederlands, vriendelijk en informatief. Maximaal 150 woorden. Geen bullet points, gewoon vloeiende tekst.`
+Schrijf in het Nederlands, vriendelijk en informatief, in vloeiende lopende tekst zonder bullet points. Maximaal 150 woorden. BELANGRIJK: als je een gebouw of plek niet met zekerheid herkent, gok dan NIET naar een naam — beschrijf dan gewoon wat je ziet en gebruik de locatie-informatie van de gebruiker als die er is.`
           }
         ]
       }]
