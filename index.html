@@ -110,12 +110,11 @@
     body:not(.mobile-map-view) .map-container { display: none; }
   }
 
+  .header-mobile-only { display: none; }
+
   @media (max-width: 700px) {
-    .btn-label { display: none; }
-    .header-actions .btn,
-    .header-actions .btn-live,
-    .header-actions .btn-unlock-editor { padding: 8px 11px; }
-    .header-actions .btn-live span.dot { margin: 0; }
+    .header-desktop-only { display: none; }
+    .header-mobile-only { display: inline-flex; }
   }
 
   .sidebar {
@@ -1203,14 +1202,58 @@
   <div class="header-actions">
     <span class="viewer-badge" id="viewerBadge" style="display:none">👁 Alleen bekijken</span>
     <button class="btn-unlock-editor" id="unlockEditorBtn" onclick="unlockEditor()" style="display:none">🔓 Bewerkrechten invoeren</button>
-    <button class="btn-live editor-only" id="liveTrackBtn" onclick="toggleLiveTracking()"><span class="dot"></span><span class="btn-label"> Live volgen</span></button>
-    <button class="btn btn-ghost editor-only" onclick="document.getElementById('routePhotoInput').click()" title="Route uit foto's — voegt een route toe op basis van GPS-data uit meerdere foto's, zonder losse stops aan te maken">📍<span class="btn-label"> Route uit foto's</span></button>
+    <button class="btn-live editor-only header-desktop-only" id="liveTrackBtn" onclick="toggleLiveTracking()"><span class="dot"></span> Live volgen</button>
+    <button class="btn btn-ghost editor-only header-desktop-only" onclick="document.getElementById('routePhotoInput').click()" title="Route uit foto's">📍 Route uit foto's</button>
     <input type="file" id="routePhotoInput" multiple accept="image/*" style="display:none" onchange="importRouteFromPhotos(Array.from(this.files)); this.value='';">
-    <button class="btn btn-ghost" onclick="exportPhotobook()" title="Fotoboek">📖<span class="btn-label"> Fotoboek</span></button>
-    <button class="btn btn-ghost" onclick="shareTrip()" title="Delen">🔗<span class="btn-label"> Delen</span></button>
-    <button class="btn btn-primary editor-only" onclick="openAddModal()" title="Stop toevoegen">+<span class="btn-label"> Stop toevoegen</span></button>
+    <button class="btn btn-ghost header-desktop-only" onclick="exportPhotobook()">📖 Fotoboek</button>
+    <button class="btn btn-ghost header-desktop-only" onclick="shareTrip()">🔗 Delen</button>
+
+    <button class="btn btn-ghost header-mobile-only" onclick="openHeaderMenu()">⋯ Meer</button>
+
+    <button class="btn btn-primary editor-only" onclick="openAddModal()">+ Stop toevoegen</button>
   </div>
 </header>
+
+<!-- HEADER "MEER"-MENU (mobiel) -->
+<div class="save-menu-overlay" id="headerMenuOverlay" style="display:none" onclick="if(event.target===this)closeHeaderMenu()">
+  <div class="save-menu">
+    <div class="save-menu-title">Meer opties</div>
+
+    <button class="save-menu-item editor-only" onclick="closeHeaderMenu();toggleLiveTracking()">
+      <span class="save-menu-icon">🔴</span>
+      <span class="save-menu-text">
+        <span class="save-menu-label" id="headerMenuLiveLabel">Live volgen</span>
+        <span class="save-menu-sub">Tekent je route bij terwijl je loopt/fietst, zolang de app open staat</span>
+      </span>
+    </button>
+
+    <button class="save-menu-item editor-only" onclick="closeHeaderMenu();document.getElementById('routePhotoInput').click()">
+      <span class="save-menu-icon">📍</span>
+      <span class="save-menu-text">
+        <span class="save-menu-label">Route uit foto's</span>
+        <span class="save-menu-sub">Kies een serie foto's — de app leest de GPS-data eruit en tekent de route</span>
+      </span>
+    </button>
+
+    <button class="save-menu-item" onclick="closeHeaderMenu();exportPhotobook()">
+      <span class="save-menu-icon">📖</span>
+      <span class="save-menu-text">
+        <span class="save-menu-label">Fotoboek maken</span>
+        <span class="save-menu-sub">Download een PDF van de hele reis</span>
+      </span>
+    </button>
+
+    <button class="save-menu-item" onclick="closeHeaderMenu();shareTrip()">
+      <span class="save-menu-icon">🔗</span>
+      <span class="save-menu-text">
+        <span class="save-menu-label">Link delen</span>
+        <span class="save-menu-sub">Kopieert de link naar deze reis</span>
+      </span>
+    </button>
+
+    <button class="save-menu-cancel" onclick="closeHeaderMenu()">Sluiten</button>
+  </div>
+</div>
 
 <div class="app-layout">
   <div class="sidebar">
@@ -2097,15 +2140,16 @@ async function saveStop() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ editorCode: getEditorCode(), action: 'upload-photo', payload: { filename, base64, mimetype } })
       });
-      const data = await res.json();
-      if (data.url) {
+      let data = null;
+      try { data = await res.json(); } catch(e) {}
+      if (data && data.url) {
         photoURLs.push(data.url);
       } else {
-        console.error('Foto upload mislukt:', data.error);
-        showToast('⚠️ Een foto kon niet worden geüpload');
+        const detail = (data && data.error) ? data.error : `serverfout ${res.status}`;
+        showToast('⚠️ Foto-upload mislukt: ' + detail);
       }
     } catch(e) {
-      showToast('⚠️ Een foto kon niet worden geüpload');
+      showToast('⚠️ Foto-upload mislukt: ' + (e.message || 'netwerkfout'));
     }
   }
 
@@ -2118,7 +2162,8 @@ async function saveStop() {
       photos: allPhotos
     };
     const dtValue = document.getElementById('stopDateTime').value;
-    payload.created_at = dtValue ? new Date(dtValue).toISOString() : new Date().toISOString();
+    const parsedDate = dtValue ? new Date(dtValue) : new Date();
+    payload.created_at = isNaN(parsedDate.getTime()) ? new Date().toISOString() : parsedDate.toISOString();
     if (isEdit) payload.id = editingStop.id;
 
     const res = await fetch('/.netlify/functions/stops', {
@@ -2126,8 +2171,11 @@ async function saveStop() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ editorCode: getEditorCode(), action: isEdit ? 'update' : 'save', payload })
     });
-    const data = await res.json();
-    if (data.stop) {
+
+    let data = null;
+    try { data = await res.json(); } catch(e) {}
+
+    if (data && data.stop) {
       if (isEdit) {
         const idx = stops.findIndex(s => s.id === data.stop.id);
         if (idx >= 0) stops[idx] = data.stop;
@@ -2138,10 +2186,11 @@ async function saveStop() {
       closeModal();
       showToast(isEdit ? '✅ Stop bijgewerkt!' : '✅ Stop opgeslagen!');
     } else {
-      showToast('⚠️ Opslaan mislukt: ' + (data.error || 'onbekende fout'));
+      const detail = (data && data.error) ? data.error : `serverfout ${res.status}`;
+      showToast('⚠️ Opslaan mislukt: ' + detail);
     }
   } catch(e) {
-    showToast('⚠️ Opslaan mislukt');
+    showToast('⚠️ Opslaan mislukt: ' + (e.message || 'netwerkfout'));
   }
 
   saveBtn.disabled = false;
@@ -2513,6 +2562,15 @@ function downloadAllTripPhotosZip() {
 // OPSLAAN-MENU (download / Google Photos)
 // ==========================================
 let _saveMenuScope = null; // 'single' | 'day' | 'trip'
+
+function openHeaderMenu() {
+  document.getElementById('headerMenuLiveLabel').textContent = liveTracking ? 'Live volgen (actief) — tik om te stoppen' : 'Live volgen';
+  document.getElementById('headerMenuOverlay').style.display = 'flex';
+}
+
+function closeHeaderMenu() {
+  document.getElementById('headerMenuOverlay').style.display = 'none';
+}
 
 function openSaveMenu(scope) {
   _saveMenuScope = scope;
