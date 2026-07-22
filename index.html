@@ -1488,6 +1488,27 @@
 // STATE
 // ==========================================
 let map, stops = [], selectedLat = null, selectedLng = null;
+
+// ==========================================
+// FETCH MET AUTOMATISCHE HERPROBEERPOGING
+// Vangt "Load failed"-achtige haperingen op (mobiel netwerk, korte timeout)
+// ==========================================
+async function fetchJSON(url, options, retries = 1) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(url, options);
+      let data = null;
+      try { data = await res.json(); } catch(e) {}
+      return { ok: res.ok, status: res.status, data };
+    } catch (e) {
+      if (attempt === retries) {
+        return { ok: false, status: 0, data: null, networkError: e.message || 'netwerkfout' };
+      }
+      showToast('⏳ Verbinding haperde, opnieuw proberen...');
+      await new Promise(r => setTimeout(r, 1200));
+    }
+  }
+}
 let photoNames = [], photoDataURLs = [];
 let editingStop = null;
 let _locResults = [];
@@ -2014,17 +2035,21 @@ async function analyzePhotos() {
   const noteText = document.getElementById('stopNote').value.trim();
 
   try {
-    const res = await fetch('/.netlify/functions/analyze-photo', {
+    const { data, status, networkError } = await fetchJSON('/.netlify/functions/analyze-photo', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ editorCode: getEditorCode(), images, lat: selectedLat, lng: selectedLng, placeName, noteText })
     });
-    const data = await res.json();
     spinner.style.display = 'none';
     regenBtn.style.display = 'inline-flex';
-    statusText.textContent = '✨ AI analyse';
-    analysisText.textContent = data.analysis || 'Analyse niet beschikbaar.';
-    if (!document.getElementById('stopName').value && selectedLat) reverseGeocode(selectedLat, selectedLng);
+    if (data && data.analysis) {
+      statusText.textContent = '✨ AI analyse';
+      analysisText.textContent = data.analysis;
+      if (!document.getElementById('stopName').value && selectedLat) reverseGeocode(selectedLat, selectedLng);
+    } else {
+      statusText.textContent = '⚠️ Analyse mislukt';
+      analysisText.textContent = networkError || (data && data.error) || `Kon de foto niet analyseren (serverfout ${status}).`;
+    }
   } catch(e) {
     spinner.style.display = 'none';
     regenBtn.style.display = 'inline-flex';
@@ -2135,17 +2160,15 @@ async function saveStop() {
       // Bestandsnaam saneren: alleen letters, cijfers, punt en streepje
       const safeName = (photoNames[i] || 'foto.jpg').replace(/[^a-zA-Z0-9._-]/g, '_');
       const filename = `${Date.now()}_${i}_${safeName}`;
-      const res = await fetch('/.netlify/functions/stops', {
+      const { ok, status, data, networkError } = await fetchJSON('/.netlify/functions/stops', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ editorCode: getEditorCode(), action: 'upload-photo', payload: { filename, base64, mimetype } })
       });
-      let data = null;
-      try { data = await res.json(); } catch(e) {}
       if (data && data.url) {
         photoURLs.push(data.url);
       } else {
-        const detail = (data && data.error) ? data.error : `serverfout ${res.status}`;
+        const detail = networkError || (data && data.error) || `serverfout ${status}`;
         showToast('⚠️ Foto-upload mislukt: ' + detail);
       }
     } catch(e) {
