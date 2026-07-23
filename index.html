@@ -2276,7 +2276,8 @@ function closeMergeModal() {
 }
 
 async function confirmMerge(targetId) {
-  const source = stops.find(s => s.id === mergeSourceStopId);
+  const sourceId = mergeSourceStopId; // vastleggen vóórdat closeMergeModal() de globale variabele wist
+  const source = stops.find(s => s.id === sourceId);
   const target = stops.find(s => s.id === targetId);
   if (!source || !target) return;
 
@@ -2288,11 +2289,11 @@ async function confirmMerge(targetId) {
   const { data, status, networkError } = await fetchJSON('/.netlify/functions/stops', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ editorCode: getEditorCode(), action: 'merge', payload: { targetId, sourceId: mergeSourceStopId } })
+    body: JSON.stringify({ editorCode: getEditorCode(), action: 'merge', payload: { targetId, sourceId } })
   });
 
   if (data && data.stop) {
-    stops = stops.filter(s => s.id !== mergeSourceStopId);
+    stops = stops.filter(s => s.id !== sourceId);
     const idx = stops.findIndex(s => s.id === targetId);
     if (idx >= 0) stops[idx] = data.stop;
     renderStops();
