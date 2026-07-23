@@ -1619,11 +1619,28 @@ async function loadStops() {
 // RENDER
 // ==========================================
 function renderStops() {
+  try {
+    _renderStopsInner();
+  } catch(e) {
+    console.error('renderStops crashte:', e);
+    showToast('⚠️ Kaart kon niet volledig vernieuwd worden — herlaad de pagina indien nodig');
+  }
+}
+
+function _renderStopsInner() {
   const list = document.getElementById('stopsList');
   map.eachLayer(l => { if (l instanceof L.Marker) map.removeLayer(l); });
   map.eachLayer(l => { if (l instanceof L.Polyline && l !== liveTrailLine) map.removeLayer(l); });
 
-  if (stops.length === 0) {
+  // Stops met kapotte/ontbrekende coördinaten overslaan i.p.v. de hele kaart te laten crashen
+  const validStops = stops.filter(s => {
+    const lat = Number(s.lat), lng = Number(s.lng);
+    return isFinite(lat) && isFinite(lng);
+  });
+  const skipped = stops.length - validStops.length;
+  if (skipped > 0) console.warn(`${skipped} stop(s) met ongeldige locatie overgeslagen bij het tekenen van de kaart`);
+
+  if (validStops.length === 0) {
     list.innerHTML = `<div class="empty-state"><div class="empty-icon">🗺️</div><div class="empty-text">Nog geen stops.<br>Klik op de kaart of gebruik de knop.</div></div>`;
     return;
   }
@@ -1634,7 +1651,7 @@ function renderStops() {
   // Groepeer op dag (YYYY-MM-DD)
   const groups = {};
   const order = [];
-  stops.forEach((stop, i) => {
+  validStops.forEach((stop, i) => {
     const dateKey = new Date(stop.created_at).toISOString().slice(0,10);
     if (!groups[dateKey]) { groups[dateKey] = []; order.push(dateKey); }
     groups[dateKey].push({ stop, index: i });
@@ -2205,9 +2222,11 @@ async function saveStop() {
       } else {
         stops.push(data.stop);
       }
-      renderStops();
-      closeModal();
+      // Succes eerst melden en het venster sluiten — een eventuele crash bij het
+      // hertekenen van de kaart mag een geslaagde opslag nooit meer verbergen
       showToast(isEdit ? '✅ Stop bijgewerkt!' : '✅ Stop opgeslagen!');
+      closeModal();
+      renderStops();
     } else {
       const detail = (data && data.error) ? data.error : `serverfout ${res.status}`;
       showToast('⚠️ Opslaan mislukt: ' + detail);
