@@ -1595,6 +1595,7 @@ function _renderStopsInner() {
   });
 
   order.forEach((dateKey, dayIdx) => {
+    try {
     const items = groups[dateKey];
     const dateLabel = new Date(items[0].stop.created_at).toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long'});
     const firstWithPhoto = items.find(it => (it.stop.photos||[]).length > 0);
@@ -1623,8 +1624,9 @@ function _renderStopsInner() {
           <span class="day-summary-readmore">${hasStory ? '[Lees meer]' : (isEditor ? '[Bouw dagverhaal]' : 'Nog geen dagverhaal')}</span>
         </div>
       </div>`;
-    if (thumb) {
-      summaryCard.querySelector('[data-daythumb]').onclick = (e) => { e.stopPropagation(); openPhotoViewer(dateKey, 0); };
+    const thumbEl = summaryCard.querySelector('[data-daythumb]');
+    if (thumb && thumbEl) {
+      thumbEl.onclick = (e) => { e.stopPropagation(); openPhotoViewer(dateKey, 0); };
     }
     summaryCard.onclick = () => openDayStory(dateKey);
     list.appendChild(summaryCard);
@@ -1633,24 +1635,31 @@ function _renderStopsInner() {
     miniList.className = 'stop-mini-list';
 
     items.forEach(({ stop, index }) => {
-      const photos = stop.photos || [];
-      L.marker([stop.lat, stop.lng], { icon: createMarkerIcon(index+1, photos[0]) })
-        .addTo(map)
-        .on('click', () => showDetail(stop));
-      coords.push([stop.lat, stop.lng]);
+      try {
+        const photos = stop.photos || [];
+        L.marker([stop.lat, stop.lng], { icon: createMarkerIcon(index+1, photos[0]) })
+          .addTo(map)
+          .on('click', () => showDetail(stop));
+        coords.push([stop.lat, stop.lng]);
 
-      const row = document.createElement('div');
-      row.className = 'stop-mini-row';
-      row.innerHTML = `
-        ${photos[0] ? `<img class="stop-mini-thumb" src="${photos[0]}" loading="lazy">` : `<div class="stop-mini-dot">${index+1}</div>`}
-        <div class="stop-mini-info">
-          <div class="stop-mini-name">${stop.name}</div>
-          <div class="stop-mini-time">${new Date(stop.created_at).toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'})}</div>
-        </div>`;
-      row.onclick = () => showDetail(stop);
-      miniList.appendChild(row);
+        const row = document.createElement('div');
+        row.className = 'stop-mini-row';
+        row.innerHTML = `
+          ${photos[0] ? `<img class="stop-mini-thumb" src="${photos[0]}" loading="lazy">` : `<div class="stop-mini-dot">${index+1}</div>`}
+          <div class="stop-mini-info">
+            <div class="stop-mini-name">${stop.name || 'Naamloze stop'}</div>
+            <div class="stop-mini-time">${new Date(stop.created_at).toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'})}</div>
+          </div>`;
+        row.onclick = () => showDetail(stop);
+        miniList.appendChild(row);
+      } catch(stopErr) {
+        console.error(`Stop "${stop && stop.name}" kon niet getekend worden:`, stopErr);
+      }
     });
     list.appendChild(miniList);
+    } catch(dayErr) {
+      console.error(`Dag ${dateKey} kon niet volledig getekend worden:`, dayErr);
+    }
   });
 
   if (coords.length > 1) {
