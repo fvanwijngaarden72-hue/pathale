@@ -27,7 +27,7 @@ exports.handler = async (event) => {
   }
   const { action, payload, editorCode } = body;
 
-  const WRITE_ACTIONS = ['save', 'update', 'delete', 'upload-photo', 'save-trackpoint', 'clear-trackpoints', 'save-trip-meta'];
+  const WRITE_ACTIONS = ['save', 'update', 'delete', 'upload-photo', 'save-trackpoint', 'clear-trackpoints', 'save-trip-meta', 'merge'];
   if (WRITE_ACTIONS.includes(action) && !isEditor(editorCode)) {
     return FORBIDDEN;
   }
@@ -145,6 +145,34 @@ exports.handler = async (event) => {
       const { data, error } = await db.from('trip_meta').upsert({ id: 1, ...payload }).select();
       if (error) throw error;
       return { statusCode: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tripMeta: data[0] }) };
+    }
+
+    if (action === 'merge') {
+      const { targetId, sourceId } = payload;
+
+      const { data: targetRows, error: targetErr } = await db.from('stops').select('*').eq('id', targetId);
+      if (targetErr) throw targetErr;
+      const { data: sourceRows, error: sourceErr } = await db.from('stops').select('*').eq('id', sourceId);
+      if (sourceErr) throw sourceErr;
+      if (!targetRows[0] || !sourceRows[0]) {
+        return { statusCode: 404, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Stop niet gevonden' }) };
+      }
+      const target = targetRows[0], source = sourceRows[0];
+
+      const mergedPhotos = [...(target.photos || []), ...(source.photos || [])];
+      const mergedNote = [target.note, source.note].filter(Boolean).join('\n\n') || null;
+      const mergedAi = target.ai_analysis || source.ai_analysis || null;
+
+      const { data: updated, error: updateErr } = await db.from('stops')
+        .update({ photos: mergedPhotos, note: mergedNote, ai_analysis: mergedAi })
+        .eq('id', targetId)
+        .select();
+      if (updateErr) throw updateErr;
+
+      const { error: deleteErr } = await db.from('stops').delete().eq('id', sourceId);
+      if (deleteErr) throw deleteErr;
+
+      return { statusCode: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ stop: updated[0] }) };
     }
 
     return { statusCode: 400, body: 'Unknown action' };

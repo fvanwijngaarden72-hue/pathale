@@ -1323,6 +1323,20 @@
   </div>
 </div>
 
+<!-- SAMENVOEGEN-MENU -->
+<div class="modal-overlay" id="mergeModal" style="display:none" onclick="if(event.target===this)closeMergeModal()">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-header">
+      <div class="modal-title">Samenvoegen met...</div>
+      <button class="modal-close" onclick="closeMergeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:0.82rem;color:var(--muted);margin-top:-8px">Kies de stop waar alle foto's naartoe moeten. De huidige stop wordt daarna verwijderd.</div>
+      <div id="mergeCandidatesList" style="display:flex;flex-direction:column;gap:6px;max-height:50vh;overflow-y:auto"></div>
+    </div>
+  </div>
+</div>
+
 <!-- DAY STORY MODAL -->
 <div class="modal-overlay" id="dayStoryModal" style="display:none">
   <div class="modal">
@@ -1882,7 +1896,9 @@ async function processPhotoFiles(files) {
       showToast('🕒 Datum uit foto overgenomen');
     }
 
-    if (meta.gps || meta.dateTaken) break;
+    // Pas stoppen zodra ZOWEL locatie als datum zijn gevonden (of geen van beide meer te vinden is) —
+    // anders kan 1 foto met alleen een datum verhinderen dat een latere foto met GPS gevonden wordt
+    if (selectedLat && dateSetFromExif) break;
   }
 
   for (const file of files) {
@@ -2101,11 +2117,15 @@ function updateRecordButtons(recording) {
 // ==========================================
 // SAVE STOP — via Netlify function
 // ==========================================
+let _isSavingStop = false;
+
 async function saveStop() {
+  if (_isSavingStop) return; // harde blokkade tegen dubbele indiening
   const name = document.getElementById('stopName').value.trim();
   if (!name) return showToast('Voer een naam in');
   if (!selectedLat) return showToast('Selecteer een locatie op de kaart');
 
+  _isSavingStop = true;
   const saveBtn = document.getElementById('saveBtn');
   saveBtn.disabled = true;
   saveBtn.textContent = 'Opslaan...';
@@ -2183,6 +2203,7 @@ async function saveStop() {
 
   saveBtn.disabled = false;
   saveBtn.textContent = 'Stop opslaan';
+  _isSavingStop = false;
 }
 
 // ==========================================
@@ -2207,12 +2228,79 @@ function showDetail(stop) {
       <div class="detail-date">📍 ${stop.lat.toFixed(4)}, ${stop.lng.toFixed(4)} · ${new Date(stop.created_at).toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</div>
       ${stop.note ? `<div class="detail-note">${stop.note}</div>` : ''}
       ${stop.ai_analysis ? `<div class="detail-ai"><div class="detail-ai-title">✨ AI Analyse</div><div class="detail-ai-text">${stop.ai_analysis}</div></div>` : ''}
-      <div style="display:flex;gap:10px" class="editor-only">
+      <div style="display:flex;gap:10px;flex-wrap:wrap" class="editor-only">
         <button class="btn-save" onclick="openEditModal('${stop.id}')">✏️ Bewerken</button>
+        <button class="btn-cancel" onclick="openMergePicker('${stop.id}')">🔗 Samenvoegen</button>
         <button class="btn-cancel" style="color:#dc2626;border-color:#fca5a5" onclick="deleteStop('${stop.id}')">🗑 Verwijderen</button>
       </div>
     </div>`;
   document.getElementById('detailOverlay').style.display = 'flex';
+}
+
+// ==========================================
+// STOPS SAMENVOEGEN
+// ==========================================
+let mergeSourceStopId = null;
+
+function openMergePicker(sourceId) {
+  if (!isEditor) return showToast('👁 Je hebt alleen bekijkrechten voor deze reis');
+  const source = stops.find(s => s.id === sourceId);
+  if (!source) return;
+  mergeSourceStopId = sourceId;
+  document.getElementById('detailOverlay').style.display = 'none';
+
+  const sourceDay = new Date(source.created_at).toISOString().slice(0,10);
+  const candidates = stops
+    .filter(s => s.id !== sourceId)
+    .sort((a, b) => {
+      const score = s => (s.name.toLowerCase() === source.name.toLowerCase() ? 0 : 1) + (new Date(s.created_at).toISOString().slice(0,10) === sourceDay ? 0 : 1);
+      return score(a) - score(b);
+    });
+
+  const list = document.getElementById('mergeCandidatesList');
+  if (candidates.length === 0) {
+    list.innerHTML = `<div style="padding:16px;color:var(--muted);font-size:0.85rem;text-align:center">Geen andere stops om mee samen te voegen.</div>`;
+  } else {
+    list.innerHTML = candidates.map(c => `
+      <button class="loc-result" style="width:100%;display:flex;justify-content:space-between;align-items:center;gap:10px" onclick="confirmMerge('${c.id}')">
+        <span>${c.name}</span>
+        <span style="color:var(--muted);font-size:0.74rem;white-space:nowrap">${new Date(c.created_at).toLocaleDateString('nl-NL',{day:'numeric',month:'short'})} · ${new Date(c.created_at).toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'})}</span>
+      </button>`).join('');
+  }
+  document.getElementById('mergeModal').style.display = 'flex';
+}
+
+function closeMergeModal() {
+  document.getElementById('mergeModal').style.display = 'none';
+  mergeSourceStopId = null;
+}
+
+async function confirmMerge(targetId) {
+  const source = stops.find(s => s.id === mergeSourceStopId);
+  const target = stops.find(s => s.id === targetId);
+  if (!source || !target) return;
+
+  if (!confirm(`"${source.name}" samenvoegen met "${target.name}"?\n\nAlle foto's gaan naar "${target.name}", en "${source.name}" wordt daarna verwijderd. Dit kan niet ongedaan gemaakt worden.`)) return;
+
+  closeMergeModal();
+  showToast('🔗 Stops samenvoegen...');
+
+  const { data, status, networkError } = await fetchJSON('/.netlify/functions/stops', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ editorCode: getEditorCode(), action: 'merge', payload: { targetId, sourceId: mergeSourceStopId } })
+  });
+
+  if (data && data.stop) {
+    stops = stops.filter(s => s.id !== mergeSourceStopId);
+    const idx = stops.findIndex(s => s.id === targetId);
+    if (idx >= 0) stops[idx] = data.stop;
+    renderStops();
+    showToast('✅ Stops samengevoegd!');
+  } else {
+    showToast('⚠️ Samenvoegen mislukt: ' + (networkError || (data && data.error) || `serverfout ${status}`));
+  }
+  mergeSourceStopId = null;
 }
 
 async function deleteStop(id) {
