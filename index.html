@@ -631,7 +631,16 @@
   .add-stop-btn:active { transform: scale(0.96); }
 
   @media (max-width: 860px) {
-    .add-stop-btn { bottom: calc(env(safe-area-inset-bottom) + 78px); right: 20px; }
+    .add-stop-btn {
+      bottom: calc(env(safe-area-inset-bottom) + 96px);
+      right: 18px;
+      padding: 0;
+      width: 52px;
+      height: 52px;
+      justify-content: center;
+      font-size: 1.4rem;
+    }
+    .add-stop-btn .fab-label { display: none; }
   }
 
   /* ================= MODALS (algemeen) ================= */
@@ -1068,6 +1077,8 @@
     background: var(--surface);
     border-top: 1px solid var(--border-soft);
     padding: 9px 0 max(9px, env(safe-area-inset-bottom));
+    position: relative;
+    z-index: 1300;
   }
   .tab-item {
     background: none; border: none;
@@ -1210,7 +1221,7 @@
   </div>
 </div>
 
-<button class="add-stop-btn editor-only" onclick="openAddModal()">+ Nieuwe stop</button>
+<button class="add-stop-btn editor-only" onclick="openAddModal()">+<span class="fab-label"> Nieuwe stop</span></button>
 
 <div class="bottom-tab-bar">
   <button class="tab-item" onclick="tabComingSoon()"><span>🗺️</span>Journeys</button>
@@ -1503,20 +1514,20 @@ function createMarkerIcon(number, photoUrl) {
     return L.divIcon({
       className: '',
       html: `
-        <div style="display:flex;flex-direction:column;align-items:center;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.35))">
-          <div style="width:44px;height:44px;border-radius:10px;background:white;padding:3px;box-shadow:0 1px 4px rgba(0,0,0,0.2)">
-            <img src="${photoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:7px" loading="lazy">
+        <div style="display:flex;flex-direction:column;align-items:center;filter:drop-shadow(0 3px 8px rgba(0,0,0,0.4))">
+          <div style="width:46px;height:46px;border-radius:12px;background:white;padding:3px;box-shadow:0 1px 4px rgba(0,0,0,0.2)">
+            <img src="${photoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:9px" loading="lazy">
           </div>
           <div style="width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-top:9px solid white;margin-top:-2px"></div>
-          <div style="background:#0d9488;color:white;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;margin-top:-6px;border:2px solid white">${number}</div>
+          <div style="background:#0E6B5C;color:white;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;margin-top:-7px;border:2.5px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.3)">${number}</div>
         </div>`,
-      iconSize: [44, 70], iconAnchor: [22, 70]
+      iconSize: [46, 76], iconAnchor: [23, 76]
     });
   }
   return L.divIcon({
     className: '',
-    html: `<div style="background:#0d9488;color:white;width:32px;height:32px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;border:2px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3)"><span style="transform:rotate(45deg);font-size:12px;font-weight:600">${number}</span></div>`,
-    iconSize: [32, 32], iconAnchor: [16, 32]
+    html: `<div style="background:#0E6B5C;color:white;width:34px;height:34px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;border:2.5px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3)"><span style="transform:rotate(45deg);font-size:13px;font-weight:700">${number}</span></div>`,
+    iconSize: [34, 34], iconAnchor: [17, 34]
   });
 }
 
@@ -1561,7 +1572,10 @@ function _renderStopsInner() {
     return isFinite(lat) && isFinite(lng);
   });
   const skipped = stops.length - validStops.length;
-  if (skipped > 0) console.warn(`${skipped} stop(s) met ongeldige locatie overgeslagen bij het tekenen van de kaart`);
+  if (skipped > 0) {
+    console.warn(`${skipped} stop(s) met ongeldige locatie overgeslagen bij het tekenen van de kaart`);
+    showToast(`⚠️ ${skipped} stop(s) met een kapotte locatie worden niet getoond`);
+  }
 
   if (validStops.length === 0) {
     list.innerHTML = `<div class="empty-state"><div class="empty-icon">🗺️</div><div class="empty-text">Nog geen stops.<br>Klik op de kaart of gebruik de knop.</div></div>`;
