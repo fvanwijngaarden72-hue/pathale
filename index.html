@@ -1208,6 +1208,7 @@
         <button class="btn-cancel" style="flex:1;font-size:0.78rem;padding:8px" onclick="exportTripData()">⬇️ Reisboek-data</button>
       </div>
       <button class="btn-cancel" style="width:100%;font-size:0.78rem;padding:8px;margin-top:8px" onclick="openSaveMenu('trip')">📦 Alle foto's opslaan</button>
+      <button id="fixIssuesBtn" class="btn-cancel editor-only" style="width:100%;font-size:0.78rem;padding:8px;margin-top:8px;display:none;color:#dc2626;border-color:#fca5a5" onclick="openFixIssuesModal()">⚠️ Stops herstellen</button>
     </div>
   </div>
 
@@ -1333,6 +1334,20 @@
     <div class="modal-body">
       <div style="font-size:0.82rem;color:var(--muted);margin-top:-8px">Kies de stop waar alle foto's naartoe moeten. De huidige stop wordt daarna verwijderd.</div>
       <div id="mergeCandidatesList" style="display:flex;flex-direction:column;gap:6px;max-height:50vh;overflow-y:auto"></div>
+    </div>
+  </div>
+</div>
+
+<!-- PROBLEMEN OPLOSSEN -->
+<div class="modal-overlay" id="fixIssuesModal" style="display:none" onclick="if(event.target===this)closeFixIssuesModal()">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <div class="modal-title">⚠️ Stops met kapotte locatie</div>
+      <button class="modal-close" onclick="closeFixIssuesModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:0.82rem;color:var(--muted);margin-top:-8px">Deze stops hebben geen geldige locatie en verschijnen daarom niet op de kaart of in Tales. Bewerk ze om de locatie te herstellen, of verwijder ze.</div>
+      <div id="fixIssuesList" style="display:flex;flex-direction:column;gap:8px"></div>
     </div>
   </div>
 </div>
@@ -1577,18 +1592,31 @@ function renderStops() {
 
 function _renderStopsInner() {
   const list = document.getElementById('stopsList');
-  map.eachLayer(l => { if (l instanceof L.Marker) map.removeLayer(l); });
-  map.eachLayer(l => { if (l instanceof L.Polyline && l !== liveTrailLine) map.removeLayer(l); });
+  // BELANGRIJK: eerst verzamelen, dan pas verwijderen — removeLayer() tijdens het
+  // doorlopen van eachLayer() kan er willekeurig voor zorgen dat sommige lagen worden
+  // overgeslagen, met verweesde/spook-markers als resultaat
+  const layersToRemove = [];
+  map.eachLayer(l => {
+    if (l instanceof L.Marker || (l instanceof L.Polyline && l !== liveTrailLine)) layersToRemove.push(l);
+  });
+  layersToRemove.forEach(l => map.removeLayer(l));
 
   // Stops met kapotte/ontbrekende coördinaten overslaan i.p.v. de hele kaart te laten crashen
   const validStops = stops.filter(s => {
     const lat = Number(s.lat), lng = Number(s.lng);
-    return isFinite(lat) && isFinite(lng);
+    // Niet alleen "is een getal", maar ook een écht bestaande breedte-/lengtegraad —
+    // anders kan een corrupte waarde (bijv. een verdwaald timestamp) een marker
+    // ver buiten de kaart projecteren en op vreemd gedrag uitdraaien
+    return isFinite(lat) && isFinite(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180 && !(lat === 0 && lng === 0);
   });
   const skipped = stops.length - validStops.length;
+  const fixBtn = document.getElementById('fixIssuesBtn');
   if (skipped > 0) {
     console.warn(`${skipped} stop(s) met ongeldige locatie overgeslagen bij het tekenen van de kaart`);
     showToast(`⚠️ ${skipped} stop(s) met een kapotte locatie worden niet getoond`);
+    if (fixBtn) { fixBtn.style.display = 'block'; fixBtn.textContent = `⚠️ ${skipped} stop(s) herstellen`; }
+  } else if (fixBtn) {
+    fixBtn.style.display = 'none';
   }
 
   if (validStops.length === 0) {
@@ -1726,9 +1754,11 @@ function openEditModal(id) {
   document.querySelector('#addModal .modal-title').textContent = 'Stop bewerken';
   document.getElementById('stopName').value = stop.name || '';
   document.getElementById('stopNote').value = stop.note || '';
-  selectedLat = stop.lat;
-  selectedLng = stop.lng;
-  document.getElementById('coordDisplay').textContent = `${selectedLat.toFixed(5)}, ${selectedLng.toFixed(5)}`;
+  selectedLat = Number(stop.lat);
+  selectedLng = Number(stop.lng);
+  document.getElementById('coordDisplay').textContent = (isFinite(selectedLat) && isFinite(selectedLng))
+    ? `${selectedLat.toFixed(5)}, ${selectedLng.toFixed(5)}`
+    : '⚠️ Locatie onbekend — zoek of klik opnieuw op de kaart om deze te herstellen';
   const dtInput = document.getElementById('stopDateTime');
   dtInput.value = isoToLocalInputValue(stop.created_at);
   dtInput.dataset.touched = '1';
@@ -2210,31 +2240,48 @@ async function saveStop() {
 // DETAIL
 // ==========================================
 function showDetail(stop) {
-  const photos = stop.photos || [];
-  const cls = ['','one','two','three','many'][Math.min(photos.length, 4)];
+  try {
+    const photos = stop.photos || [];
+    const cls = ['','one','two','three','many'][Math.min(photos.length, 4)];
 
-  const dateKey = new Date(stop.created_at).toISOString().slice(0,10);
-  const dayStops = stops.filter(s => new Date(s.created_at).toISOString().slice(0,10) === dateKey);
-  let offset = 0;
-  for (const s of dayStops) {
-    if (s.id === stop.id) break;
-    offset += (s.photos || []).length;
+    const dateKey = new Date(stop.created_at).toISOString().slice(0,10);
+    const dayStops = stops.filter(s => new Date(s.created_at).toISOString().slice(0,10) === dateKey);
+    let offset = 0;
+    for (const s of dayStops) {
+      if (s.id === stop.id) break;
+      offset += (s.photos || []).length;
+    }
+
+    const lat = Number(stop.lat), lng = Number(stop.lng);
+    const coordText = (isFinite(lat) && isFinite(lng)) ? `📍 ${lat.toFixed(4)}, ${lng.toFixed(4)} · ` : '⚠️ Locatie onbekend · ';
+
+    document.getElementById('detailContent').innerHTML = `
+      ${photos.length > 0 ? `<div class="detail-photos ${cls}">${photos.slice(0,4).map((p,i)=>`<img src="${p}" loading="lazy" style="cursor:pointer" onclick="openPhotoViewer('${dateKey}', ${offset + i})">`).join('')}</div>` : ''}
+      <div class="detail-body">
+        <div class="detail-name">${stop.name || 'Naamloze stop'}</div>
+        <div class="detail-date">${coordText}${new Date(stop.created_at).toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</div>
+        ${stop.note ? `<div class="detail-note">${stop.note}</div>` : ''}
+        ${stop.ai_analysis ? `<div class="detail-ai"><div class="detail-ai-title">✨ AI Analyse</div><div class="detail-ai-text">${stop.ai_analysis}</div></div>` : ''}
+        <div style="display:flex;gap:10px;flex-wrap:wrap" class="editor-only">
+          <button class="btn-save" onclick="openEditModal('${stop.id}')">✏️ Bewerken</button>
+          <button class="btn-cancel" onclick="openMergePicker('${stop.id}')">🔗 Samenvoegen</button>
+          <button class="btn-cancel" style="color:#dc2626;border-color:#fca5a5" onclick="deleteStop('${stop.id}')">🗑 Verwijderen</button>
+        </div>
+      </div>`;
+    document.getElementById('detailOverlay').style.display = 'flex';
+  } catch(e) {
+    // Vangnet: ook als er iets kapots in de data zit, moet verwijderen altijd mogelijk blijven
+    console.error('showDetail crashte voor stop', stop && stop.id, e);
+    document.getElementById('detailContent').innerHTML = `
+      <div class="detail-body">
+        <div class="detail-name">⚠️ Deze stop kon niet volledig geladen worden</div>
+        <div class="detail-note" style="color:var(--muted)">Er zit waarschijnlijk iets kapots in de opgeslagen data (bijv. de locatie). Je kunt 'm hieronder alsnog verwijderen.</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px" class="editor-only">
+          <button class="btn-cancel" style="color:#dc2626;border-color:#fca5a5" onclick="deleteStop('${stop.id}')">🗑 Verwijderen</button>
+        </div>
+      </div>`;
+    document.getElementById('detailOverlay').style.display = 'flex';
   }
-
-  document.getElementById('detailContent').innerHTML = `
-    ${photos.length > 0 ? `<div class="detail-photos ${cls}">${photos.slice(0,4).map((p,i)=>`<img src="${p}" loading="lazy" style="cursor:pointer" onclick="openPhotoViewer('${dateKey}', ${offset + i})">`).join('')}</div>` : ''}
-    <div class="detail-body">
-      <div class="detail-name">${stop.name}</div>
-      <div class="detail-date">📍 ${stop.lat.toFixed(4)}, ${stop.lng.toFixed(4)} · ${new Date(stop.created_at).toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</div>
-      ${stop.note ? `<div class="detail-note">${stop.note}</div>` : ''}
-      ${stop.ai_analysis ? `<div class="detail-ai"><div class="detail-ai-title">✨ AI Analyse</div><div class="detail-ai-text">${stop.ai_analysis}</div></div>` : ''}
-      <div style="display:flex;gap:10px;flex-wrap:wrap" class="editor-only">
-        <button class="btn-save" onclick="openEditModal('${stop.id}')">✏️ Bewerken</button>
-        <button class="btn-cancel" onclick="openMergePicker('${stop.id}')">🔗 Samenvoegen</button>
-        <button class="btn-cancel" style="color:#dc2626;border-color:#fca5a5" onclick="deleteStop('${stop.id}')">🗑 Verwijderen</button>
-      </div>
-    </div>`;
-  document.getElementById('detailOverlay').style.display = 'flex';
 }
 
 // ==========================================
@@ -2304,6 +2351,39 @@ async function confirmMerge(targetId) {
   mergeSourceStopId = null;
 }
 
+// ==========================================
+// STOPS MET KAPOTTE LOCATIE HERSTELLEN
+// ==========================================
+function openFixIssuesModal() {
+  if (!isEditor) return showToast('👁 Je hebt alleen bekijkrechten voor deze reis');
+  const broken = stops.filter(s => {
+    const lat = Number(s.lat), lng = Number(s.lng);
+    return !(isFinite(lat) && isFinite(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180 && !(lat === 0 && lng === 0));
+  });
+
+  const list = document.getElementById('fixIssuesList');
+  if (broken.length === 0) {
+    list.innerHTML = `<div style="padding:16px;color:var(--muted);font-size:0.85rem;text-align:center">Geen kapotte stops meer gevonden.</div>`;
+  } else {
+    list.innerHTML = broken.map(s => `
+      <div class="loc-result" style="display:flex;justify-content:space-between;align-items:center;gap:10px;cursor:default">
+        <div>
+          <div style="font-weight:600">${s.name || 'Naamloze stop'}</div>
+          <div style="font-size:0.72rem;color:var(--muted)">${new Date(s.created_at).toLocaleDateString('nl-NL',{day:'numeric',month:'short',year:'numeric'})} · lat: ${s.lat}, lng: ${s.lng}</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          <button class="btn-cancel" style="padding:6px 10px;font-size:0.76rem" onclick="closeFixIssuesModal();openEditModal('${s.id}')">✏️</button>
+          <button class="btn-cancel" style="padding:6px 10px;font-size:0.76rem;color:#dc2626;border-color:#fca5a5" onclick="deleteStop('${s.id}')">🗑</button>
+        </div>
+      </div>`).join('');
+  }
+  document.getElementById('fixIssuesModal').style.display = 'flex';
+}
+
+function closeFixIssuesModal() {
+  document.getElementById('fixIssuesModal').style.display = 'none';
+}
+
 async function deleteStop(id) {
   if (!isEditor) return showToast('👁 Je hebt alleen bekijkrechten voor deze reis');
   if (!confirm('Weet je zeker dat je deze stop wilt verwijderen?')) return;
@@ -2318,6 +2398,7 @@ async function deleteStop(id) {
       stops = stops.filter(s => s.id !== id);
       renderStops();
       document.getElementById('detailOverlay').style.display = 'none';
+      if (document.getElementById('fixIssuesModal').style.display !== 'none') openFixIssuesModal();
       showToast('🗑 Stop verwijderd');
     } else {
       showToast('⚠️ Verwijderen mislukt');
