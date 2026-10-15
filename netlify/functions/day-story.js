@@ -23,7 +23,7 @@ exports.handler = async (event) => {
   const { action, date, items, tripTitle, baseText, editorCode } = body;
 
   // 'generate' kost tokens en 'save'/'save-photos' schrijven data — allemaal editor-only
-  const WRITE_ACTIONS = ['generate', 'save', 'save-photos'];
+  const WRITE_ACTIONS = ['generate', 'save', 'save-photos', 'set-archived'];
   if (WRITE_ACTIONS.includes(action) && !isEditor(editorCode)) {
     return FORBIDDEN;
   }
@@ -91,6 +91,16 @@ exports.handler = async (event) => {
       const { data, error } = await db
         .from('day_stories')
         .upsert({ date, photos: photos || [] }, { onConflict: 'date' })
+        .select();
+      if (error) throw error;
+      return { statusCode: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dayStory: data[0] }) };
+    }
+
+    if (action === 'set-archived') {
+      const { archived } = body;
+      const { data, error } = await db
+        .from('day_stories')
+        .upsert({ date, archived: !!archived }, { onConflict: 'date' })
         .select();
       if (error) throw error;
       return { statusCode: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dayStory: data[0] }) };

@@ -1114,6 +1114,122 @@
     to { opacity: 1; transform: translateX(-50%) translateY(0); }
   }
 
+  /* ================= WERKBLAD ================= */
+  .workbench-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(27,33,30,0.42);
+    backdrop-filter: blur(3px);
+    z-index: 4000;
+    display: flex;
+    justify-content: flex-end;
+    animation: fadeIn var(--fast) ease;
+  }
+
+  .workbench-panel {
+    background: var(--paper);
+    width: 100%;
+    max-width: 640px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    box-shadow: var(--shadow-lg);
+    animation: workbenchIn var(--med) var(--ease);
+  }
+  @keyframes workbenchIn {
+    from { transform: translateX(24px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+  @media (max-width: 700px) {
+    .workbench-panel { max-width: 100%; }
+  }
+
+  .workbench-header {
+    padding: 20px 22px;
+    border-bottom: 1px solid var(--border-soft);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+  .workbench-title {
+    font-family: 'Playfair Display', serif;
+    font-weight: 700;
+    font-size: 1.15rem;
+    color: var(--ink);
+  }
+  .workbench-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .workbench-card {
+    background: var(--surface);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    animation: card-in 0.3s var(--ease) both;
+  }
+  .workbench-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border-soft);
+    background: var(--surface-sunken);
+  }
+  .workbench-card-title {
+    font-family: 'Playfair Display', serif;
+    font-weight: 700;
+    font-size: 0.98rem;
+    color: var(--ink);
+  }
+  .workbench-card-close {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 0.95rem;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: var(--r-xs);
+    transition: all var(--fast);
+  }
+  .workbench-card-close:hover { background: var(--danger-soft); color: var(--danger); }
+  .workbench-card-body { padding: 16px 18px; }
+
+  .workbench-card-footer {
+    padding: 12px 18px;
+    border-top: 1px solid var(--border-soft);
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .workbench-card-footer .btn-cancel, .workbench-card-footer .btn-save {
+    padding: 8px 14px;
+    font-size: 0.78rem;
+  }
+
+  .workbench-badge-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: var(--r-full);
+    background: var(--accent);
+    color: white;
+    font-size: 0.68rem;
+    font-weight: 700;
+    margin-left: 4px;
+  }
+
   /* ================= SCROLLBAR ================= */
   ::-webkit-scrollbar { width: 7px; }
   ::-webkit-scrollbar-track { background: transparent; }
@@ -1141,6 +1257,7 @@
     <button class="btn btn-ghost editor-only header-desktop-only" onclick="document.getElementById('routePhotoInput').click()" title="Route uit foto's">📍 Route uit foto's</button>
     <input type="file" id="routePhotoInput" multiple accept="image/*" style="display:none" onchange="importRouteFromPhotos(Array.from(this.files)); this.value='';">
     <button class="btn btn-ghost header-desktop-only" onclick="exportPhotobook()">📖 Fotoboek</button>
+    <button class="btn btn-ghost header-desktop-only" onclick="generateCulturalBooklet()" title="Rijk vormgegeven bezoekboekje, per dag een hoofdstuk">📔 Bezoekboekje</button>
     <button class="btn btn-ghost header-desktop-only" onclick="shareTrip()">🔗 Delen</button>
 
     <button class="btn btn-ghost header-mobile-only" onclick="openHeaderMenu()">⋯ Meer</button>
@@ -1173,6 +1290,14 @@
       <span class="save-menu-text">
         <span class="save-menu-label">Fotoboek maken</span>
         <span class="save-menu-sub">Download een PDF van de hele reis</span>
+      </span>
+    </button>
+
+    <button class="save-menu-item" onclick="closeHeaderMenu();generateCulturalBooklet()">
+      <span class="save-menu-icon">📔</span>
+      <span class="save-menu-text">
+        <span class="save-menu-label">Bezoekboekje maken</span>
+        <span class="save-menu-sub">Rijk vormgegeven HTML-boekje, per dag een hoofdstuk</span>
       </span>
     </button>
 
@@ -1209,6 +1334,7 @@
       </div>
       <button class="btn-cancel" style="width:100%;font-size:0.78rem;padding:8px;margin-top:8px" onclick="openSaveMenu('trip')">📦 Alle foto's opslaan</button>
       <button id="fixIssuesBtn" class="btn-cancel editor-only" style="width:100%;font-size:0.78rem;padding:8px;margin-top:8px;display:none;color:#dc2626;border-color:#fca5a5" onclick="openFixIssuesModal()">⚠️ Stops herstellen</button>
+      <button id="openWorkbenchBtn" class="btn-cancel" style="width:100%;font-size:0.78rem;padding:8px;margin-top:8px" onclick="showWorkbench()">📚 Werkblad <span id="workbenchBadge" style="display:none"></span></button>
     </div>
   </div>
 
@@ -1352,6 +1478,34 @@
   </div>
 </div>
 
+<!-- WERKBLAD: meerdere dagverhalen tegelijk open -->
+<div class="workbench-overlay" id="workbenchOverlay" style="display:none">
+  <div class="workbench-panel">
+    <div class="workbench-header">
+      <div class="workbench-title">📚 Werkblad <span id="workbenchCount" style="font-weight:400;color:var(--muted)"></span></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn-daystory-photos" onclick="openArchiveList()">📁 Beleefde avonturen</button>
+        <button class="modal-close" onclick="closeWorkbench()">✕</button>
+      </div>
+    </div>
+    <div class="workbench-body" id="workbenchBody"></div>
+  </div>
+</div>
+
+<!-- BELEEFDE AVONTUREN -->
+<div class="modal-overlay" id="archiveModal" style="display:none" onclick="if(event.target===this)closeArchiveList()">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <div class="modal-title">📁 Beleefde avonturen</div>
+      <button class="modal-close" onclick="closeArchiveList()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:0.82rem;color:var(--muted);margin-top:-8px">Verhalen die je hebt gesloten. Tik erop om 'm weer op het werkblad te openen.</div>
+      <div id="archiveList" style="display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+  </div>
+</div>
+
 <!-- DAY STORY MODAL -->
 <div class="modal-overlay" id="dayStoryModal" style="display:none">
   <div class="modal">
@@ -1477,6 +1631,9 @@ let editingStop = null;
 let _locResults = [];
 let dayStories = {};
 let dayStoriesPhotos = {};
+let dayStoriesArchived = {};
+let openStoryDates = [];      // dateKeys die nu open staan op het werkblad
+let workbenchEditMode = {};   // dateKey -> bewerk-modus aan/uit
 let tripMeta = { title: 'Mijn Reis', status: 'actief', finished_at: null };
 let isEditor = true;
 let liveTracking = false, liveWatchId = null, liveTrail = [], liveTrailLine = null, lastSavedPoint = null;
@@ -1670,7 +1827,7 @@ function _renderStopsInner() {
     if (thumb && thumbEl) {
       thumbEl.onclick = (e) => { e.stopPropagation(); openPhotoViewer(dateKey, 0); };
     }
-    summaryCard.onclick = () => openDayStory(dateKey);
+    summaryCard.onclick = () => openStoryInWorkbench(dateKey);
     list.appendChild(summaryCard);
 
     const miniList = document.createElement('div');
@@ -2425,15 +2582,213 @@ async function loadDayStories() {
     const data = await res.json();
     dayStories = {};
     dayStoriesPhotos = {};
+    dayStoriesArchived = {};
     (data.stories || []).forEach(s => {
       dayStories[s.date] = s.story;
       dayStoriesPhotos[s.date] = s.photos || [];
+      dayStoriesArchived[s.date] = !!s.archived;
     });
     if (stops.length > 0) renderStops();
   } catch(e) {}
 }
 
-function openDayStory(dateKey) {
+// ==========================================
+// WERKBLAD — meerdere dagverhalen tegelijk open
+// ==========================================
+function wbEl(dateKey, part) { return document.getElementById(`wb-${part}-${dateKey}`); }
+
+function renderWorkbenchCard(dateKey) {
+  const items = stops.filter(s => new Date(s.created_at).toISOString().slice(0,10) === dateKey);
+  const dateLabel = items.length > 0
+    ? new Date(items[0].created_at).toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long',year:'numeric'})
+    : dateKey;
+  const isEdit = !!workbenchEditMode[dateKey];
+  const text = dayStories[dateKey];
+
+  return `
+    <div class="workbench-card" id="wb-card-${dateKey}">
+      <div class="workbench-card-header">
+        <div class="workbench-card-title">📖 ${dateLabel}</div>
+        <button class="workbench-card-close" onclick="closeStoryCard('${dateKey}')" title="Sluiten — verplaatst naar Beleefde avonturen">✕ Sluiten</button>
+      </div>
+      <div class="workbench-card-body">
+        <div class="day-story-text" id="wb-text-${dateKey}" style="${isEdit ? 'display:none' : ''}">${text || (isEditor ? 'Verhaal wordt geschreven...' : 'Nog geen dagverhaal.')}</div>
+        <textarea class="day-story-textarea" id="wb-textarea-${dateKey}" style="${isEdit ? '' : 'display:none'}">${text || ''}</textarea>
+      </div>
+      <div class="workbench-card-footer" id="wb-footer-view-${dateKey}" style="${isEdit ? 'display:none' : ''}">
+        <button class="btn-cancel editor-only" onclick="wbRegenerate('${dateKey}')">🔄 Regenereer</button>
+        <button class="btn-cancel editor-only" onclick="wbStartEdit('${dateKey}')">✏️ Bewerken</button>
+        <button class="btn-cancel" onclick="openFullStoryEditor('${dateKey}')">🔍 Uitgebreid (foto's/spraak)</button>
+      </div>
+      <div class="workbench-card-footer" id="wb-footer-edit-${dateKey}" style="${isEdit ? '' : 'display:none'}">
+        <button class="btn-cancel" onclick="wbCancelEdit('${dateKey}')">Annuleren</button>
+        <button class="btn-cancel editor-only" style="color:#2563eb;border-color:#bfdbfe" onclick="wbCompileAI('${dateKey}')">✨ AI verwerken</button>
+        <button class="btn-save editor-only" onclick="wbSaveEdited('${dateKey}')">💾 Opslaan</button>
+      </div>
+    </div>`;
+}
+
+function refreshWorkbenchCard(dateKey) {
+  const el = document.getElementById(`wb-card-${dateKey}`);
+  if (el) el.outerHTML = renderWorkbenchCard(dateKey);
+}
+
+function renderWorkbench() {
+  const body = document.getElementById('workbenchBody');
+  if (openStoryDates.length === 0) {
+    body.innerHTML = `<div class="empty-state"><div class="empty-icon">📚</div><div class="empty-text">Nog geen verhalen open.<br>Klik op een dagkaart in Tales om 'm hier te openen.</div></div>`;
+  } else {
+    body.innerHTML = openStoryDates.map(dateKey => renderWorkbenchCard(dateKey)).join('');
+  }
+  document.getElementById('workbenchCount').textContent = openStoryDates.length > 0 ? `(${openStoryDates.length})` : '';
+  updateWorkbenchBadge();
+}
+
+function updateWorkbenchBadge() {
+  const badge = document.getElementById('workbenchBadge');
+  if (openStoryDates.length > 0) {
+    badge.textContent = openStoryDates.length;
+    badge.className = 'workbench-badge-count';
+    badge.style.display = 'inline-flex';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+function showWorkbench() {
+  document.getElementById('workbenchOverlay').style.display = 'flex';
+  renderWorkbench();
+}
+
+function closeWorkbench() {
+  document.getElementById('workbenchOverlay').style.display = 'none';
+}
+
+async function openStoryInWorkbench(dateKey) {
+  if (!openStoryDates.includes(dateKey)) openStoryDates.push(dateKey);
+
+  // Heropenen = niet meer "beleefd"
+  if (dayStoriesArchived[dateKey]) {
+    dayStoriesArchived[dateKey] = false;
+    fetchJSON('/.netlify/functions/day-story', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ editorCode: getEditorCode(), action: 'set-archived', date: dateKey, archived: false })
+    }).catch(() => {});
+  }
+
+  showWorkbench();
+
+  if (!dayStories[dateKey] && isEditor) {
+    await wbGenerate(dateKey);
+  }
+}
+
+async function wbGenerate(dateKey, baseText) {
+  const items = stops.filter(s => new Date(s.created_at).toISOString().slice(0,10) === dateKey)
+    .map(s => ({ name: s.name, note: s.note, ai_analysis: s.ai_analysis }));
+  if (items.length === 0) return;
+
+  const textEl = wbEl(dateKey, 'text');
+  if (textEl) textEl.textContent = baseText ? 'Jouw tekst verwerken...' : 'Verhaal schrijven...';
+
+  try {
+    const { data } = await fetchJSON('/.netlify/functions/day-story', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ editorCode: getEditorCode(), action: 'generate', date: dateKey, items, tripTitle: tripMeta.title || 'Pathale', baseText })
+    });
+    if (data && data.story) {
+      dayStories[dateKey] = data.story;
+      fetchJSON('/.netlify/functions/day-story', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ editorCode: getEditorCode(), action: 'save', date: dateKey, story: data.story })
+      }).catch(() => {});
+      renderStops();
+    }
+  } catch(e) {}
+  refreshWorkbenchCard(dateKey);
+}
+
+function wbStartEdit(dateKey) {
+  if (!isEditor) return showToast('👁 Je hebt alleen bekijkrechten voor deze reis');
+  workbenchEditMode[dateKey] = true;
+  refreshWorkbenchCard(dateKey);
+}
+
+function wbCancelEdit(dateKey) {
+  workbenchEditMode[dateKey] = false;
+  refreshWorkbenchCard(dateKey);
+}
+
+async function wbSaveEdited(dateKey) {
+  if (!isEditor) return showToast('👁 Je hebt alleen bekijkrechten voor deze reis');
+  const textarea = wbEl(dateKey, 'textarea');
+  const newText = textarea.value.trim();
+  if (!newText) return showToast('Verhaal mag niet leeg zijn');
+
+  dayStories[dateKey] = newText;
+  workbenchEditMode[dateKey] = false;
+  refreshWorkbenchCard(dateKey);
+  renderStops();
+
+  const { data } = await fetchJSON('/.netlify/functions/day-story', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ editorCode: getEditorCode(), action: 'save', date: dateKey, story: newText })
+  });
+  showToast(data && data.dayStory ? '💾 Opgeslagen!' : '⚠️ Opslaan mislukt');
+}
+
+async function wbRegenerate(dateKey) {
+  if (!isEditor) return showToast('👁 Je hebt alleen bekijkrechten voor deze reis');
+  await wbGenerate(dateKey);
+}
+
+async function wbCompileAI(dateKey) {
+  if (!isEditor) return showToast('👁 Je hebt alleen bekijkrechten voor deze reis');
+  const textarea = wbEl(dateKey, 'textarea');
+  const text = textarea.value.trim();
+  if (!text) return showToast('Vul eerst wat tekst in');
+  workbenchEditMode[dateKey] = false;
+  await wbGenerate(dateKey, text);
+}
+
+async function closeStoryCard(dateKey) {
+  openStoryDates = openStoryDates.filter(d => d !== dateKey);
+  workbenchEditMode[dateKey] = false;
+  dayStoriesArchived[dateKey] = true;
+  renderWorkbench();
+  showToast('📁 Verplaatst naar Beleefde avonturen');
+  try {
+    await fetchJSON('/.netlify/functions/day-story', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ editorCode: getEditorCode(), action: 'set-archived', date: dateKey, archived: true })
+    });
+  } catch(e) {}
+}
+
+function openArchiveList() {
+  const archivedDates = Object.keys(dayStoriesArchived).filter(d => dayStoriesArchived[d]);
+  const list = document.getElementById('archiveList');
+  if (archivedDates.length === 0) {
+    list.innerHTML = `<div style="padding:16px;color:var(--muted);font-size:0.85rem;text-align:center">Nog geen gesloten verhalen.</div>`;
+  } else {
+    list.innerHTML = archivedDates.sort().reverse().map(dateKey => {
+      const dateLabel = new Date(dateKey + 'T12:00:00').toLocaleDateString('nl-NL',{day:'numeric',month:'long',year:'numeric'});
+      const snippet = (dayStories[dateKey] || 'Geen tekst').slice(0,80);
+      return `<button class="loc-result" style="width:100%;text-align:left" onclick="closeArchiveList();openStoryInWorkbench('${dateKey}')">
+        <div style="font-weight:600">${dateLabel}</div>
+        <div style="font-size:0.76rem;color:var(--muted);margin-top:2px">${snippet}${snippet.length===80?'…':''}</div>
+      </button>`;
+    }).join('');
+  }
+  document.getElementById('archiveModal').style.display = 'flex';
+}
+
+function closeArchiveList() {
+  document.getElementById('archiveModal').style.display = 'none';
+}
+
+function openFullStoryEditor(dateKey) {
+  closeWorkbench();
   const items = stops.filter(s => new Date(s.created_at).toISOString().slice(0,10) === dateKey);
   currentDayStoryDate = dateKey;
   currentDayStoryItems = items;
@@ -3085,6 +3440,215 @@ async function exportPhotobook() {
 
   doc.save('pathale-fotoboek.pdf');
   showToast('✅ Fotoboek gedownload!');
+}
+
+// ==========================================
+// CULTUREEL BEZOEKBOEKJE (rijke HTML, gebaseerd op de cultureel-bezoekboekje skill)
+// ==========================================
+function toRoman(num) {
+  const map = [[10,'X'],[9,'IX'],[5,'V'],[4,'IV'],[1,'I']];
+  let result = '', n = num;
+  for (const [val, sym] of map) { while (n >= val) { result += sym; n -= val; } }
+  return result || 'I';
+}
+
+async function urlToBase64(url) {
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    return await new Promise(resolve => {
+      const r = new FileReader();
+      r.onload = e => resolve(e.target.result);
+      r.onerror = () => resolve(null);
+      r.readAsDataURL(blob);
+    });
+  } catch(e) { return null; }
+}
+
+async function generateCulturalBooklet() {
+  if (stops.length === 0) return showToast('Nog geen stops om een boekje van te maken');
+  showToast('📔 Bezoekboekje bouwen, dit kan even duren...');
+
+  // Groepeer op dag, net als in de app zelf
+  const groups = {};
+  const order = [];
+  [...stops].sort((a,b) => new Date(a.created_at) - new Date(b.created_at)).forEach(stop => {
+    const dateKey = new Date(stop.created_at).toISOString().slice(0,10);
+    if (!groups[dateKey]) { groups[dateKey] = []; order.push(dateKey); }
+    groups[dateKey].push(stop);
+  });
+
+  const firstDate = new Date(stops[0].created_at);
+  const lastDate = new Date(stops[stops.length-1].created_at);
+  const dateRangeText = firstDate.toDateString() === lastDate.toDateString()
+    ? firstDate.toLocaleDateString('nl-NL', {day:'numeric', month:'long', year:'numeric'})
+    : `${firstDate.toLocaleDateString('nl-NL',{day:'numeric',month:'long'})} – ${lastDate.toLocaleDateString('nl-NL',{day:'numeric',month:'long',year:'numeric'})}`;
+
+  // Coverfoto: eerste beschikbare foto van de reis
+  const coverStop = stops.find(s => (s.photos||[]).length > 0);
+  const coverPhotoB64 = coverStop ? await urlToBase64(coverStop.photos[0]) : null;
+
+  // Bouw hoofdstukken per dag
+  let chaptersHtml = '';
+  for (let dayIdx = 0; dayIdx < order.length; dayIdx++) {
+    const dateKey = order[dayIdx];
+    const dayStops = groups[dateKey];
+    const dateLabel = new Date(dayStops[0].created_at).toLocaleDateString('nl-NL', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+    const dayStory = dayStories[dateKey];
+    const locationNames = [...new Set(dayStops.map(s => s.name))].join(' · ');
+
+    let stopsHtml = '';
+    for (const stop of dayStops) {
+      const photos = stop.photos || [];
+      const photoB64s = [];
+      for (const p of photos.slice(0, 3)) {
+        const b64 = await urlToBase64(p);
+        if (b64) photoB64s.push(b64);
+      }
+
+      let photosHtml = '';
+      if (photoB64s.length === 1) {
+        photosHtml = `<div class="img-frame"><img src="${photoB64s[0]}" alt="${stop.name}"><p class="img-caption">${stop.name}</p></div>`;
+      } else if (photoB64s.length === 2) {
+        photosHtml = `<div class="img-duo">${photoB64s.map(b => `<div class="img-frame"><img src="${b}" alt="${stop.name}"></div>`).join('')}</div>`;
+      } else if (photoB64s.length >= 3) {
+        photosHtml = `<div class="img-duo"><div class="img-frame"><img src="${photoB64s[0]}" alt="${stop.name}"></div><div class="img-frame"><img src="${photoB64s[1]}" alt="${stop.name}"></div></div><div class="img-frame"><img src="${photoB64s[2]}" alt="${stop.name}"><p class="img-caption">${stop.name}</p></div>`;
+      }
+
+      stopsHtml += `
+        <h3 class="sub">${stop.name} <span style="font-weight:400;font-size:14px;color:var(--text-light)">· ${new Date(stop.created_at).toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'})}</span></h3>
+        ${photosHtml}
+        ${stop.note ? `<p>${stop.note}</p>` : ''}
+        ${stop.ai_analysis ? `<p>${stop.ai_analysis}</p>` : ''}
+      `;
+    }
+
+    chaptersHtml += `
+      <div class="chapter">
+        <span class="chapter-number">${toRoman(dayIdx+1)}</span>
+        <span class="chapter-label">Dag ${dayIdx+1} — ${dateLabel}</span>
+        <h2 class="chapter-title">${locationNames}</h2>
+        <div class="chapter-rule"></div>
+        ${dayStory ? `<p class="lead">${dayStory}</p>` : ''}
+        ${stopsHtml}
+      </div>
+      <div class="ornament-divider">— ✦ —</div>
+    `;
+  }
+
+  const tripTitleSafe = tripMeta.title || 'Onze Reis';
+
+  const html = `<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${tripTitleSafe} — Reisboekje</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --gold: #B8960C; --gold-light: #D4AF37; --gold-pale: #F5E6A3;
+  --cream: #FAF6EE; --cream-dark: #F0E8D5;
+  --brown: #3D2B1F; --brown-mid: #6B4226; --green-garden: #2D5016;
+  --text: #2A1F14; --text-light: #5C4A35;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'EB Garamond',Georgia,serif; background:var(--cream); color:var(--text); font-size:16px; line-height:1.8; padding-top:48px; }
+.print-bar { position:fixed; top:0; left:0; right:0; background:var(--brown); color:var(--gold-pale); display:flex; align-items:center; justify-content:space-between; padding:10px 24px; z-index:1000; box-shadow:0 2px 12px rgba(0,0,0,0.4); }
+.print-bar span { font-family:'Cormorant Garamond',serif; font-size:14px; letter-spacing:.12em; text-transform:uppercase; opacity:.8; }
+.btn-print { background:var(--gold); color:var(--brown); border:none; padding:8px 22px; font-family:'Cormorant Garamond',serif; font-size:14px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; cursor:pointer; border-radius:2px; transition:background .2s,transform .1s; display:flex; align-items:center; gap:8px; }
+.btn-print:hover { background:var(--gold-light); transform:translateY(-1px); }
+.cover { min-height:100vh; background:linear-gradient(160deg,var(--brown) 0%,#5C3520 40%,var(--brown-mid) 100%); display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:80px 40px 60px; position:relative; overflow:hidden; }
+.cover::before { content:''; position:absolute; inset:0; background:radial-gradient(ellipse 80% 60% at 50% 120%,rgba(184,150,12,0.15) 0%,transparent 60%); pointer-events:none; }
+.cover-img { width:100%; max-width:720px; margin:0 auto 28px; border:2px solid rgba(184,150,12,0.4); box-shadow:0 12px 48px rgba(0,0,0,0.5); }
+.cover-ornament { font-size:40px; color:var(--gold); margin-bottom:20px; letter-spacing:.3em; }
+.cover-subtitle-top { font-family:'Cormorant Garamond',serif; font-size:13px; letter-spacing:.35em; text-transform:uppercase; color:var(--gold-light); margin-bottom:16px; }
+.cover-title { font-family:'Playfair Display',serif; font-size:clamp(42px,7vw,80px); font-weight:900; color:var(--cream); line-height:1.05; margin-bottom:8px; }
+.cover-title em { font-style:italic; color:var(--gold-light); }
+.cover-divider { width:160px; height:1px; background:linear-gradient(90deg,transparent,var(--gold),transparent); margin:24px auto; }
+.cover-tagline { font-family:'Cormorant Garamond',serif; font-size:21px; font-style:italic; color:var(--cream-dark); max-width:500px; line-height:1.6; margin-bottom:24px; }
+.cover-meta { font-family:'Cormorant Garamond',serif; font-size:13px; letter-spacing:.25em; text-transform:uppercase; color:var(--gold); opacity:.7; }
+.content { max-width:860px; margin:0 auto; padding:0 40px 80px; }
+.chapter { margin-top:80px; }
+.chapter-number { font-family:'Playfair Display',serif; font-size:72px; font-weight:900; color:var(--gold-pale); line-height:1; margin-bottom:-16px; display:block; }
+.chapter-label { font-family:'Cormorant Garamond',serif; font-size:11px; letter-spacing:.4em; text-transform:uppercase; color:var(--gold); display:block; margin-bottom:4px; }
+.chapter-title { font-family:'Playfair Display',serif; font-size:clamp(24px,4vw,36px); font-weight:700; color:var(--brown); line-height:1.2; margin-bottom:6px; }
+.chapter-rule { height:2px; background:linear-gradient(90deg,var(--gold) 0%,var(--gold-pale) 60%,transparent 100%); margin:16px 0 28px; }
+p { margin-bottom:18px; text-align:justify; hyphens:auto; font-size:16px; }
+p.lead { font-size:19px; font-family:'Cormorant Garamond',serif; font-style:italic; color:var(--brown-mid); line-height:1.7; margin-bottom:24px; white-space:pre-wrap; }
+strong { color:var(--brown); font-weight:600; }
+h3.sub { font-family:'Playfair Display',serif; font-size:20px; color:var(--brown); margin:28px 0 12px; font-weight:700; }
+.img-frame { margin:28px 0; text-align:center; }
+.img-frame img { max-width:100%; border:1px solid var(--cream-dark); box-shadow:0 4px 24px rgba(61,43,31,.12); display:block; margin:0 auto; }
+.img-caption { font-family:'Cormorant Garamond',serif; font-size:13px; font-style:italic; color:var(--text-light); margin-top:10px; text-align:center; letter-spacing:.02em; }
+.img-duo { display:grid; grid-template-columns:1fr 1fr; gap:20px; margin:28px 0; }
+.img-duo .img-frame { margin:0; }
+.ornament-divider { text-align:center; color:var(--gold); font-size:22px; letter-spacing:.5em; margin:48px 0; opacity:.6; }
+.colofon { background:var(--brown); color:var(--cream-dark); padding:60px 40px; text-align:center; margin-top:80px; }
+.colofon h3 { font-family:'Playfair Display',serif; font-size:24px; color:var(--gold-light); margin-bottom:16px; }
+.colofon p { font-size:14px; color:rgba(250,246,238,.7); max-width:500px; margin:0 auto 16px; text-align:center; hyphens:none; }
+@media(max-width:600px) {
+  .content { padding:0 20px 60px; }
+  .img-duo { grid-template-columns:1fr; }
+}
+@media print {
+  .print-bar { display:none !important; }
+  body { font-size:11pt; padding-top:0; }
+  .cover { min-height:auto; page-break-after:always; }
+  .chapter { page-break-before:always; }
+  .chapter:first-child { page-break-before:avoid; }
+  .img-frame { break-inside:avoid; }
+  a { color:inherit; text-decoration:none; }
+  .img-duo { grid-template-columns:1fr 1fr; }
+  h3.sub { break-after:avoid; }
+}
+</style>
+</head>
+<body>
+
+<div class="print-bar">
+  <span>${tripTitleSafe} — ${dateRangeText}</span>
+  <button class="btn-print" onclick="window.print()">🖨 Afdrukken als PDF</button>
+</div>
+
+<div class="cover">
+  <div class="cover-ornament">✦ ✦ ✦</div>
+  <div class="cover-subtitle-top">Reisdagboek · ${dateRangeText}</div>
+  <h1 class="cover-title">${tripTitleSafe}</h1>
+  <div class="cover-divider"></div>
+  ${coverPhotoB64 ? `<img class="cover-img" src="${coverPhotoB64}" alt="${tripTitleSafe}">` : ''}
+  <div class="cover-divider"></div>
+  <p class="cover-tagline">Een verzameling van de mooiste momenten, plekken en verhalen van deze reis.</p>
+  <span class="cover-meta">${stops.length} stops · ${order.length} ${order.length === 1 ? 'dag' : 'dagen'}</span>
+</div>
+
+<div class="content">
+  ${chaptersHtml}
+</div>
+
+<div class="colofon">
+  <div style="font-size:32px; color:var(--gold); margin-bottom:16px;">✦</div>
+  <h3>${tripTitleSafe}</h3>
+  <p>Dit boekje werd samengesteld ter herinnering aan deze reis, ${dateRangeText}.</p>
+  <p>Gemaakt met Pathale.</p>
+</div>
+
+</body>
+</html>`;
+
+  const blob = new Blob([html], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const safeName = tripTitleSafe.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  a.download = `${safeName}-bezoekboekje.html`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+
+  showToast('✅ Bezoekboekje gedownload! Open het bestand in je browser, of upload het als index.html op netlify.com/drop');
 }
 
 function tabComingSoon() {
